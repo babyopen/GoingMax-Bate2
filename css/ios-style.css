@@ -1,0 +1,294 @@
+/* ===================================
+   ios-style.css - iOS适配、安全区、毛玻璃、深色模式
+   =================================== */
+
+/* 底部导航栏 - 毛玻璃效果 */
+:root{
+  --nav-glass-bg:rgba(255,255,255,0.55);
+  --nav-glass-border:rgba(255,255,255,0.35);
+  --nav-glass-shadow:rgba(0,0,0,0.06);
+  --nav-item-bg:rgba(0,0,0,0.04);
+  --nav-item-border:rgba(0,0,0,0.06);
+  --nav-item-text:rgba(0,0,0,0.45);
+  --nav-item-active-text:rgba(0,0,0,0.85);
+  --nav-item-active-bg:rgba(0,0,0,0.08);
+  /* 区域（zone）配色变量（2026-06-09 修复 light mode 丢失）
+     原 55a01d3 重构时只加在 dark mode 的 :root 中，导致 light mode 下
+     .zone-mid / .zone-active / .zone-wait 等 class 颜色全部丢失。
+     颜色值与原 card.css 字面值一一对应，确保视觉与重构前一致。 */
+  --zone-peak:#FF453A;--zone-peak-bg:rgba(255,69,58,0.18);--zone-peak-bg-12:rgba(255,69,58,0.12);
+  --zone-high:#FF9500;--zone-high-bg:rgba(255,149,0,0.15);--zone-high-bg-12:rgba(255,149,0,0.12);
+  --zone-ovht:#FF6B6B;--zone-ovht-bg:rgba(255,107,107,0.14);--zone-ovht-bg-12:rgba(255,107,107,0.12);
+  --zone-mid:#0A84FF;--zone-mid-bg:rgba(0,122,255,0.12);--zone-mid-bg-8:rgba(0,122,255,0.08);
+  --zone-active:#E6A823;--zone-active-bg:rgba(230,168,35,0.14);--zone-active-bg-12:rgba(230,168,35,0.12);
+  --zone-low:#30D158;--zone-low-bg:rgba(48,209,88,0.12);
+  --zone-wait:#AF52DE;--zone-wait-bg:rgba(175,82,222,0.12);
+}
+
+/* 固定底部导航栏 */
+.bottom-nav-wrapper{
+  position:fixed;left:0;right:0;bottom:0;z-index:999;
+  display:flex;justify-content:center;align-items:center;
+  padding:0 clamp(10px,2.5vw,16px) clamp(14px,2.5vw,18px) clamp(10px,2.5vw,16px);gap:clamp(10px,2.5vw,14px);
+  width:100%;box-sizing:border-box;
+}
+.bottom-nav{
+  display:flex;justify-content:center;align-items:center;
+  background:var(--nav-glass-bg);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  backdrop-filter:blur(20px) saturate(180%);
+  border-radius:clamp(28px,5vw,32px);
+  padding:clamp(8px,2vw,14px) clamp(10px,2.5vw,20px);
+  height:clamp(54px,9vw,70px);
+  box-sizing:border-box;
+  box-shadow:0 4px 24px var(--nav-glass-shadow),0 0 0 0.5px var(--nav-glass-border);
+  gap:clamp(8px,2vw,16px);
+  max-width:calc(100% - clamp(20px,5vw,32px));
+  width:auto;
+}
+
+/* 低端设备降级：降低模糊强度以提升滚动性能 */
+@media (max-width: 375px), (max-height: 667px) {
+  .bottom-nav{
+    -webkit-backdrop-filter:blur(10px) saturate(150%);
+    backdrop-filter:blur(10px) saturate(150%);
+  }
+  .bottom-nav-toggle{
+    -webkit-backdrop-filter:blur(8px) saturate(150%);
+    backdrop-filter:blur(8px) saturate(150%);
+  }
+  .quick-nav{
+    -webkit-backdrop-filter:blur(8px) saturate(150%);
+    backdrop-filter:blur(8px) saturate(150%);
+  }
+}
+.bottom-nav-toggle{
+  display:flex;justify-content:center;align-items:center;
+  width:clamp(48px,9vw,58px);height:clamp(48px,9vw,58px);
+  min-width:clamp(48px,9vw,58px);
+  border-radius:clamp(28px,5vw,32px);background:var(--nav-glass-bg);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid var(--nav-glass-border);cursor:pointer;touch-action:manipulation;
+  transition:all var(--anim-fast);box-shadow:0 4px 12px var(--nav-glass-shadow);
+  font-size:clamp(13px,2.8vw,15px);font-weight:500;color:var(--nav-item-text);padding:0;font-family:inherit;
+  box-sizing:border-box;
+}
+.bottom-nav-toggle.active{
+  background:var(--nav-item-active-bg);border-color:var(--nav-item-active-text);
+  box-shadow:0 4px 16px rgba(255,107,138,0.3);color:var(--nav-item-active-text);font-weight:700;
+}
+.bottom-nav-toggle:active{transform:scale(0.95)}
+.bottom-nav-item{
+  display:flex;align-items:center;justify-content:center;
+  flex:1;min-width:0;
+  height:clamp(46px,8vw,58px);
+  border-radius:clamp(28px,5vw,32px);
+  padding:0 clamp(10px,2.5vw,22px);
+  transition:all var(--anim-fast);cursor:pointer;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;position:relative;
+}
+.bottom-nav-item span{
+  font-size:clamp(14px,3vw,16px);font-weight:500;color:var(--nav-item-text);
+  transition:color var(--anim-fast), font-weight var(--anim-fast);line-height:1.2;
+  white-space:nowrap;
+}
+.bottom-nav-item.active{background:var(--nav-item-active-bg)}
+.bottom-nav-item.active span{color:var(--nav-item-active-text);font-weight:700}
+.bottom-nav-item:active{transform:scale(0.95)}
+
+/* 快捷导航 - 毛玻璃 */
+.quick-nav{
+  position:fixed;left:16px;right:16px;bottom:calc(70px + var(--safe-bottom));z-index:1000;
+  max-width:calc(100% - 32px);
+  background:var(--nav-glass-bg);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  backdrop-filter:blur(20px) saturate(180%);
+  border-radius:24px;
+  box-shadow:0 4px 24px var(--nav-glass-shadow),0 0 0 0.5px var(--nav-glass-border);
+  overflow:hidden;transition:all var(--anim-normal);
+}
+.quick-nav.collapsed{height:0;width:0;padding:0;margin:0;opacity:0;overflow:hidden}
+.quick-nav.expanded{height:auto}
+.nav-tabs{display:flex;gap:8px;padding:10px;flex-wrap:wrap;max-height:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{
+  padding:9px 15px;border-radius:14px;background:var(--nav-item-bg);color:var(--nav-item-text);
+  font-size:13px;font-weight:500;border:1px solid var(--nav-item-border);cursor:pointer;flex-shrink:0;
+  transition:all var(--anim-fast);touch-action:manipulation;-webkit-user-select:none;user-select:none;
+}
+.nav-tab:active{background:var(--nav-item-active-bg);color:var(--nav-item-active-text)}
+
+/* 返回顶部按钮 - 毛玻璃 */
+.back-top-btn{
+  position:fixed;right:16px;bottom:calc(90px + var(--safe-bottom));z-index:997;width:44px;height:44px;
+  border-radius:50%;background:rgba(0,122,255,0.9);-webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);color:#FFFFFF;border:none;font-size:18px;cursor:pointer;
+  display:grid;place-items:center;opacity:0;transition:opacity var(--anim-normal);pointer-events:none;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;
+}
+.back-top-btn.show{opacity:1;pointer-events:auto}
+.back-top-btn:active{opacity:0.6}
+
+/* ====================== 深色模式全局适配 ====================== */
+@media (prefers-color-scheme: dark) {
+  :root{
+    --bg:#000000;
+    --card:#1C1C1E;
+    --text:#FFFFFF;
+    --sub-text:#98989F;
+    --primary:#0A84FF;
+    --danger:#FF453A;
+    --blue:#0A84FF;
+    --green:#30D158;
+    /* 区域（zone）配色集中变量（2026-06-09 重构，card.css 中重复 3 次的字面值改用变量） */
+    --zone-peak:#FF453A;--zone-peak-bg:rgba(255,69,58,0.18);--zone-peak-bg-12:rgba(255,69,58,0.12);
+    --zone-high:#FF9500;--zone-high-bg:rgba(255,149,0,0.15);--zone-high-bg-12:rgba(255,149,0,0.12);
+    --zone-ovht:#FF6B6B;--zone-ovht-bg:rgba(255,107,107,0.14);--zone-ovht-bg-12:rgba(255,107,107,0.12);
+    --zone-mid:#0A84FF;--zone-mid-bg:rgba(0,122,255,0.12);--zone-mid-bg-8:rgba(0,122,255,0.08);
+    --zone-active:#E6A823;--zone-active-bg:rgba(230,168,35,0.14);--zone-active-bg-12:rgba(230,168,35,0.12);
+    --zone-low:#30D158;--zone-low-bg:rgba(48,209,88,0.12);
+    --zone-wait:#AF52DE;--zone-wait-bg:rgba(175,82,222,0.12);
+    --border:rgba(255,255,255,0.1);
+    --overlay:rgba(0,0,0,0.85);
+    --bg-secondary:#2C2C2E;
+    /* 导航深色变量 */
+    --nav-glass-bg:rgba(28,28,30,0.55);
+    --nav-glass-border:rgba(255,255,255,0.1);
+    --nav-glass-shadow:rgba(0,0,0,0.3);
+    --nav-item-bg:rgba(255,255,255,0.06);
+    --nav-item-border:rgba(255,255,255,0.12);
+    --nav-item-text:rgba(255,255,255,0.5);
+    --nav-item-active-text:rgba(255,255,255,0.95);
+    --nav-item-active-bg:rgba(255,255,255,0.12);
+  }
+  
+  /* 生肖卡片暗色适配 */
+  .db-card{background:rgba(255,255,255,0.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+  .db-result-container{background:linear-gradient(135deg, rgba(0,122,255,0.12), rgba(175,82,222,0.12))}
+  .db-card-item.card-rank-1{background:linear-gradient(145deg, #4A4000, #3A3000)}
+  .db-card-item.card-rank-2{background:linear-gradient(145deg, #505050, #404040)}
+  .db-card-item.card-rank-3{background:linear-gradient(145deg, #4A4030, #3A3020)}
+  .db-card-item.card-rank-other{background:linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))}
+  .db-card-item.card-rank-1 .db-rank-badge{background:rgba(255,255,255,0.25);color:#FFE066}
+  .db-card-item.card-rank-2 .db-rank-badge{background:rgba(255,255,255,0.25);color:#D0D0D0}
+  .db-card-item.card-rank-3 .db-rank-badge{background:rgba(255,255,255,0.15);color:#E8A962}
+  .db-card-item.card-rank-other .db-rank-badge{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.5)}
+  .db-card-item .db-card-name{color:var(--text)}
+  .db-divider{background:rgba(255,255,255,0.08)}
+  .db-miss-container{border-top:1px solid rgba(255,255,255,0.08)}
+  
+  /* 生肖卡片暗色适配 */
+  .db-card{background:var(--card)}
+  .db-result-container{background:var(--bg-secondary)}
+  .db-card-item.card-rank-other{background:var(--bg-secondary)}
+  .db-card-item.card-rank-other .db-rank-badge{background:rgba(255,255,255,0.12);color:var(--sub-text)}
+  .db-miss-item{background:rgba(0,0,0,0.2)}
+  .db-miss-tag.miss-hot{background:rgba(255,69,58,0.16);color:var(--danger)}
+  .db-miss-tag.miss-warm{background:rgba(10,132,255,0.14);color:var(--primary)}
+  .db-miss-tag.miss-deep{background:rgba(191,90,242,0.16);color:#BF5AF2}
+
+  /* 弹窗深色适配 */
+  .backtest-modal-content{background:#1c1c1e}
+  .backtest-modal-header{background:#1c1c1e;border-bottom-color:rgba(255,255,255,0.1)}
+  #zodiac-stat-modal > div{background:#1c1c1e}
+  #zodiac-stat-modal > div > div:first-child{border-bottom-color:rgba(255,255,255,0.1)}
+  #zodiac-stat-title{color:#ffffff}
+  #zodiac-stat-close{color:#ffffff}
+  #zodiac-stat-modal .zone-stat-item{background:rgba(255,255,255,0.06)}
+  #zodiac-stat-modal .zone-stat-item-value{color:#ffffff}
+  #zodiac-stat-modal .zone-stat-title{color:#98989f;border-bottom-color:rgba(255,255,255,0.1)}
+  #zodiac-stat-modal .zone-stat-period{background:rgba(255,255,255,0.06)}
+  #zodiac-stat-modal .zone-stat-period-title{color:#ffffff}
+  #zodiac-stat-modal .zone-stat-period-item{color:#ffffff}
+  
+  /* 最新一期跟随统计深色适配 */
+  .latest-follow-card{color:#ffffff}
+  .latest-follow-subtitle{color:#98989f}
+  .latest-follow-content{background:rgba(255,255,255,0.06)}
+  .latest-follow-chain{border-bottom-color:rgba(255,255,255,0.1)}
+  .latest-zodiac{background:rgba(10,132,255,0.2);color:#0A84FF}
+  .follow-zodiac{background:rgba(255,255,255,0.08);color:#ffffff}
+  .latest-follow-item{background:rgba(255,255,255,0.06)}
+  .latest-follow-name{color:#ffffff}
+  
+  /* 频率标签深色适配 */
+  .freq-tab-btn{background:rgba(255,255,255,0.06)}
+
+  /* ====================== 回测追踪模块 dark mode 适配 ====================== */
+  /* 摘要容器 + 记录行：暗背景下提亮背景（提高透明度让背景更明显可见） */
+  .backtest-summary{background:rgba(255,255,255,0.07)}
+  .backtest-record-row{background:rgba(255,255,255,0.08);border-left-color:rgba(255,255,255,0.22)}
+  .backtest-records-inline .backtest-record-row{background:rgba(255,255,255,0.08);border-left-color:rgba(255,255,255,0.22)}
+
+  /* 命中/备选/未命中/待开奖行：对应语义色加深（暗底上更清晰） */
+  .backtest-record-row.backtest-hit{background:rgba(10,132,255,0.07);border-left-color:#0A84FF}
+  .backtest-record-row.backtest-backup-hit{background:rgba(10,132,255,0.06);border-left-color:#0A84FF}
+  .backtest-record-row.backtest-miss{background:rgba(255,69,58,0.06);border-left-color:#FF453A}
+  .backtest-record-row.backtest-pending{background:rgba(10,132,255,0.10);border-left-color:var(--primary)}
+
+  /* 文本颜色：暗模式下使用半透明白提亮（确保清晰可见） */
+  .backtest-record-period{color:rgba(235,235,245,0.95)}
+  .backtest-record-predict{color:rgba(235,235,245,0.8)}
+  .backtest-record-result{color:rgba(235,235,245,0.92)}
+  .backtest-records-inline .backtest-record-period{color:rgba(235,235,245,0.95)}
+  .backtest-records-inline .backtest-record-predict{color:rgba(235,235,245,0.85)}
+  .backtest-records-inline .backtest-record-result{color:rgba(235,235,245,0.92)}
+  .backtest-records-inline .backtest-record-result b{color:#ffffff}
+
+  /* 主/防 等 inline color 标签：覆盖 view 渲染的 style="color:#1a1a1a"，dark mode 用半透明白提亮 */
+  .backtest-record-zodiacs > span[style*="color"]{
+    color:rgba(235,235,245,0.78) !important;
+  }
+
+  /* 生肖文字：主推红色 + 命中蓝色 在暗底上提亮（iOS 暗色规范） */
+  .backtest-record-zodiacs{color:#FF6961}
+  .backtest-record-zodiac-hit{color:#5AC8FA}
+
+  /* 命中率颜色：暗模式下三档全部提亮 */
+  .backtest-rate-high{color:#30D158}
+  .backtest-rate-mid{color:#FFB340}
+  .backtest-rate-low{color:#FF6961}
+
+  /* 统计标签 + 分解项：次要文字用低透明白 */
+  .backtest-stat-label{color:rgba(235,235,245,0.6)}
+  .backtest-breakdown-item{color:rgba(235,235,245,0.6)}
+
+  /* 未命中分析块：暗模式下加深背景与边框 */
+  .backtest-miss-title{color:#FF6961}
+  .backtest-miss-analysis{background:rgba(255,69,58,0.12);border-color:rgba(255,69,58,0.32)}
+  .backtest-miss-row{color:rgba(235,235,245,0.65)}
+  .backtest-miss-row span:first-child{color:#ffffff}
+
+  /* 降权徽章：橙色提亮 + 背景加深 */
+  .backtest-black-info{color:#FFB340;background:rgba(255,179,64,0.2)}
+
+  /* 段落组 + 段落标题：暗底上加深背景、提亮分隔线 */
+  .backtest-section-group{background:rgba(255,255,255,0.06)}
+  .backtest-section-title{color:rgba(235,235,245,0.9);border-bottom-color:rgba(255,255,255,0.18)}
+
+  /* 合计高亮：暗底加深绿 */
+  .backtest-total-highlight{background:linear-gradient(135deg, rgba(52,199,89,0.2), rgba(48,209,88,0.14));border-color:rgba(52,199,89,0.4)}
+  .backtest-total-highlight .backtest-section-title{color:#5BD672}
+
+  /* 自适应提示 + 徽章：暗底加深 */
+  .backtest-adaptive-info{background:rgba(255,179,64,0.12);border-color:rgba(255,179,64,0.3);color:rgba(235,235,245,0.9)}
+  .adaptive-badge-small{color:#FFB340;background:rgba(255,179,64,0.22)}
+
+  /* ====================== 筛选方案模块 dark mode 适配 ====================== */
+  /* 方案容器：在暗底上微提亮底色，让卡片轮廓更清晰 */
+  .filter-item{background:rgba(255,255,255,0.05)}
+
+  /* 方案名：暗底用半透明白 */
+  .filter-item-name{color:rgba(235,235,245,0.9)}
+
+  /* 方案操作按钮组：原 background:var(--bg) 在暗底是 #000 过深，改用浅色背景 */
+  .filter-item-btns button{background:rgba(255,255,255,0.08);color:var(--primary)}
+  .filter-item-btns button:active{background:rgba(255,255,255,0.14)}
+  /* 删除按钮：暗底下红色调亮 + 背景加深 */
+  .filter-item-btns .del{background:rgba(255,69,58,0.18);color:#FF6961}
+
+  /* 展开按钮：暗底用半透明白文字 + 中性背景 */
+  .filter-expand{background:rgba(255,255,255,0.06);color:rgba(235,235,245,0.85)}
+  .filter-expand:active{background:rgba(255,255,255,0.12)}
+}

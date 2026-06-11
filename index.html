@@ -1,0 +1,919 @@
+<!-- 
+  GoingBeta 2.0.6
+  代码结构说明：
+  - CONFIG: 配置常量模块
+  - Utils: 工具函数模块（节流、防抖、深拷贝等）
+  - StateManager: 状态管理模块
+  - Storage: 本地存储模块
+  - Toast: 提示消息模块
+  - DOM: DOM元素缓存模块
+  - Render: 视图渲染模块
+  - Filter: 筛选逻辑模块
+  - Business: 业务逻辑模块
+  - EventBinder: 事件绑定模块
+--><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#007AFF">
+<title>Gemini</title>
+<!-- 样式层：全局变量/组件 → 卡片组件 → 布局响应式 → iOS适配 -->
+<link rel="stylesheet" href="css/global.css">
+<link rel="stylesheet" href="css/card.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/ios-style.css">
+
+<!-- 图标层：FontAwesome 开源图标库（替代所有图片图标） -->
+<!-- 使用 bootcdn 国内CDN -->
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+<!-- 加载遮罩 -->
+<div class="loading-mask" id="loadingMask">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">正在加载...</div>
+</div>
+
+<!-- 固定顶部展示区 -->
+<div class="top-box" id="topBox" role="region" aria-label="筛选结果展示">
+  <div class="top-card">
+    <div class="top-title">
+      <span>符合条件：<span id="resultCount" aria-live="polite">0</span> 个</span>
+      <span>v2.0.6</span>
+    </div>
+    <div id="resultNums" class="top-nums" role="list"></div>
+  </div>
+</div>
+
+<!-- 主体内容区 -->
+<div class="body-box page-scroll" id="bodyBox">
+  <div class="page active" id="filterPage">
+    <!-- 顶部操作栏 -->
+    <div class="btn-bar" role="group" aria-label="全局操作">
+      <button class="btn-line" data-action="selectAllFilters" aria-label="全选所有筛选条件">一键全选</button>
+      <button class="btn-line" data-action="clearAllFilters" aria-label="清除所有筛选条件">一键清除</button>
+      <button class="btn-line" data-action="saveFilterPrompt" aria-label="保存当前筛选方案">保存方案</button>
+    </div>
+
+    <!-- 我的筛选方案 -->
+    <div class="card" id="mod-saved">
+      <div class="card-header">
+        <h2>我的筛选方案</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="方案操作">
+          <button class="btn-mini" data-action="saveZodiacFilterPrompt" aria-label="保存当前生肖方案">保存生肖</button>
+          <button class="btn-mini" data-action="showOverlap" aria-label="查看重叠号码">重叠</button>
+          <button class="btn-mini red" data-action="clearAllSavedFilters" aria-label="清空所有保存的方案">清空全部</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="filterList" class="filter-save-list" role="list"></div>
+      </div>
+    </div>
+
+    <!-- 生肖筛选模块 -->
+    <div class="card" id="mod-zodiac">
+      <div class="card-header">
+        <h2>生肖</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="生肖操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="zodiac" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="zodiac" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="zodiac" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="zodiac" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="zodiac" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="zodiac" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="zodiac" id="zodiacTags" role="group" aria-label="生肖选项"></div>
+      </div>
+    </div>
+
+    <!-- 波色筛选模块（合并：基础波色 + 波色单双） -->
+    <div class="card" id="mod-color">
+      <div class="card-header">
+        <h2>波色</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="波色操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="color,colorsx" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="color,colorsx" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="color,colorsx" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="color,colorsx" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="color,colorsx" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="colorsx" role="group" aria-label="波色单双选项">
+          <div class="tag" data-value="红单" data-group="colorsx">红单</div>
+          <div class="tag" data-value="红双" data-group="colorsx">红双</div>
+          <div class="tag" data-value="蓝单" data-group="colorsx">蓝单</div>
+          <div class="tag" data-value="蓝双" data-group="colorsx">蓝双</div>
+          <div class="tag" data-value="绿单" data-group="colorsx">绿单</div>
+          <div class="tag" data-value="绿双" data-group="colorsx">绿双</div>
+          <div class="tag" data-value="红" data-group="color">红</div>
+          <div class="tag" data-value="蓝" data-group="color">蓝</div>
+          <div class="tag" data-value="绿" data-group="color">绿</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 家禽野兽筛选模块 -->
+    <div class="card" id="mod-type">
+      <div class="card-header">
+        <h2>属性</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="属性操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="type" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="type" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="type" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="type" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="type" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="type" role="group" aria-label="属性选项">
+          <div class="tag" data-value="家禽" data-group="type">家禽</div>
+          <div class="tag" data-value="野兽" data-group="type">野兽</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 五行筛选模块 -->
+    <div class="card" id="mod-element">
+      <div class="card-header">
+        <h2>五行</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="五行操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="element" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="element" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="element" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="element" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="element" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="element" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="element" role="group" aria-label="五行选项">
+          <div class="tag" data-value="金" data-group="element">金</div>
+          <div class="tag" data-value="木" data-group="element">木</div>
+          <div class="tag" data-value="水" data-group="element">水</div>
+          <div class="tag" data-value="火" data-group="element">火</div>
+          <div class="tag" data-value="土" data-group="element">土</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 头数筛选模块 -->
+    <div class="card" id="mod-head">
+      <div class="card-header">
+        <h2>头数</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="头数操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="head" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="head" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="head" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="head" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="head" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="head" role="group" aria-label="头数选项">
+          <div class="tag" data-value="0" data-group="head">0头</div>
+          <div class="tag" data-value="1" data-group="head">1头</div>
+          <div class="tag" data-value="2" data-group="head">2头</div>
+          <div class="tag" data-value="3" data-group="head">3头</div>
+          <div class="tag" data-value="4" data-group="head">4头</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 尾数筛选模块 -->
+    <div class="card" id="mod-tail">
+      <div class="card-header">
+        <h2>尾数</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="尾数操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="tail" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="tail" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="tail" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="tail" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="tail" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="tail" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="tail" role="group" aria-label="尾数选项">
+          <div class="tag" data-value="0" data-group="tail">尾0</div>
+          <div class="tag" data-value="1" data-group="tail">尾1</div>
+          <div class="tag" data-value="2" data-group="tail">尾2</div>
+          <div class="tag" data-value="3" data-group="tail">尾3</div>
+          <div class="tag" data-value="4" data-group="tail">尾4</div>
+          <div class="tag" data-value="5" data-group="tail">尾5</div>
+          <div class="tag" data-value="6" data-group="tail">尾6</div>
+          <div class="tag" data-value="7" data-group="tail">尾7</div>
+          <div class="tag" data-value="8" data-group="tail">尾8</div>
+          <div class="tag" data-value="9" data-group="tail">尾9</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 尾合筛选模块 -->
+    <div class="card" id="mod-sum">
+      <div class="card-header">
+        <h2>尾合</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="尾合操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="sum" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="sum" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="sum" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="sum" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="sum" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="sum" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" data-group="sum" role="group" aria-label="尾合选项">
+          <div class="tag" data-value="1" data-group="sum">01合</div>
+          <div class="tag" data-value="2" data-group="sum">02合</div>
+          <div class="tag" data-value="3" data-group="sum">03合</div>
+          <div class="tag" data-value="4" data-group="sum">04合</div>
+          <div class="tag" data-value="5" data-group="sum">05合</div>
+          <div class="tag" data-value="6" data-group="sum">06合</div>
+          <div class="tag" data-value="7" data-group="sum">07合</div>
+          <div class="tag" data-value="8" data-group="sum">08合</div>
+          <div class="tag" data-value="9" data-group="sum">09合</div>
+          <div class="tag" data-value="10" data-group="sum">10合</div>
+          <div class="tag" data-value="11" data-group="sum">11合</div>
+          <div class="tag" data-value="12" data-group="sum">12合</div>
+          <div class="tag" data-value="13" data-group="sum">13合</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 大小筛选模块 -->
+    <div class="card" id="mod-bs">
+      <div class="card-header">
+        <h2>大小</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="大小操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="bs,sumOdd,sumSize,tailSize" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="bs,sumOdd,sumSize,tailSize" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="bs,sumOdd,sumSize,tailSize" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="bs,sumOdd,sumSize,tailSize" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="bs,sumOdd,sumSize,tailSize" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tags" role="group" aria-label="大小选项">
+          <div class="tag" data-value="大单" data-group="bs">大单</div>
+          <div class="tag" data-value="小单" data-group="bs">小单</div>
+          <div class="tag" data-value="大双" data-group="bs">大双</div>
+          <div class="tag" data-value="小双" data-group="bs">小双</div>
+          <div class="tag" data-value="合单" data-group="sumOdd">合单</div>
+          <div class="tag" data-value="合双" data-group="sumOdd">合双</div>
+          <div class="tag" data-value="合大" data-group="sumSize">合大</div>
+          <div class="tag" data-value="合小" data-group="sumSize">合小</div>
+          <div class="tag" data-value="尾大" data-group="tailSize">尾大</div>
+          <div class="tag" data-value="尾小" data-group="tailSize">尾小</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 号码选择模块 -->
+    <div class="card" id="mod-num">
+      <div class="card-header">
+        <h2>号码选择</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="号码选择操作">
+          <button class="btn-mini btn-icon" data-action="lockGroup" data-group="num" title="锁定"><i class="fa-solid fa-lock"></i></button>
+          <button class="btn-mini btn-icon" data-action="markGroup" data-group="num" title="标记"><i class="fa-solid fa-bookmark"></i></button>
+          <button class="btn-mini btn-icon" data-action="selectGroup" data-group="num" title="全选"><i class="fa-solid fa-circle-check"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertGroup" data-group="num" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="num" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearGroup" data-group="num" title="清除"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="numTags" class="tags num-tags" data-group="num" role="group" aria-label="号码选择选项"></div>
+      </div>
+    </div>
+
+    <!-- 号码排除模块 -->
+    <div class="card" id="mod-exclude">
+      <div class="card-header collapsible collapsed" data-target="excludeBody">
+        <h2>号码排除</h2>
+        <div class="btn-group icon-btn-group" role="group" aria-label="号码排除操作">
+          <button class="btn-mini btn-icon btn-toggle" data-action="toggleCollapse" title="折叠"><i class="fa-solid fa-chevron-up"></i></button>
+          <button class="btn-mini btn-icon" data-action="invertExclude" title="反选"><i class="fa-solid fa-arrow-rotate-left"></i></button>
+          <button class="btn-mini btn-icon" data-action="batchSelectGroup" data-group="exclude" title="批量选择"><i class="fa-solid fa-list-check"></i></button>
+          <button class="btn-mini btn-icon btn-icon-red" data-action="clearExclude" title="清空"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+      <div class="card-body collapsed" id="excludeBody">
+        <div class="exclude-header">
+          <div>已排除：<b id="excludeCount" aria-live="polite">0</b> 个</div>
+          <label><input type="checkbox" id="lockExclude" data-action="toggleExcludeLock"> 锁定排除</label>
+        </div>
+        <div id="excludeGrid" class="exclude-grid" role="group" aria-label="号码排除选项"></div>
+      </div>
+    </div>
+
+    <div class="disclaimer">仅供娱乐，非投注建议</div>
+  </div>
+
+  <!-- 分析页面 -->
+  <div class="page" id="analysisPage" style="display:none">
+    <!-- 最新开奖 + 倒计时模块 -->
+    <div class="analysis-card">
+      <div style="text-align:center; margin-bottom:12px;">
+        <div style="font-size:15px; color:var(--sub-text);">第 <span id="curExpect">--</span> 期开奖结果</div>
+        <div class="countdown-small">
+          距离下期开奖还有 <span class="num" id="countdown">00:00:00</span>
+        </div>
+      </div>
+      <div class="ball-group" id="latestBalls"></div>
+    </div>
+
+    <!-- 标签栏 -->
+    <div class="analysis-tab-bar">
+      <button class="analysis-tab-btn active" id="tabHistory" data-analysis-tab="history">历史记录</button>
+      <button class="analysis-tab-btn" id="tabAnalysis" data-analysis-tab="analysis">维度分析</button>
+      <button class="analysis-tab-btn" id="tabZodiac" data-analysis-tab="zodiac">生肖关联</button>
+    </div>
+
+    <!-- 1. 历史记录模块 -->
+    <div class="analysis-tab-panel active" id="historyPanel">
+      <div class="analysis-card">
+        <div class="analysis-card-title-row">
+          <div class="analysis-card-title">历史记录</div>
+          <button class="analysis-refresh-btn" data-action="refreshHistory">刷新历史</button>
+        </div>
+        <div id="historyList">加载中...</div>
+        <div id="loadMore" class="load-more" style="display:none;">点击加载更多</div>
+      </div>
+    </div>
+
+    <!-- 2. 全维度分析模块 -->
+    <div class="analysis-tab-panel" id="analysisPanelContent">
+      <div class="analysis-card">
+        <div class="analysis-card-title">特码全维度统计</div>
+        <div class="analysis-filter-bar">
+          <select id="analyzeSelect" class="analysis-filter-select">
+            <option value="12" selected>最近12期</option>
+            <option value="24">最近24期</option>
+            <option value="36">最近36期</option>
+            <option value="all">全年数据</option>
+          </select>
+          <input type="number" id="customNum" class="analysis-filter-input" placeholder="自定义期数">
+          <button class="analysis-filter-btn" data-action="syncAnalyze">确认</button>
+        </div>
+
+        <div class="empty-tip" id="emptyTip">暂无数据可分析</div>
+        <div id="hotWrap" style="display:none;">
+          <div class="hot-wrap-title">热门结论</div>
+          <div class="hot-grid">
+            <div class="hot-card"><div class="label">核心形态</div><div class="value" id="hotShape">--</div></div>
+            <div class="hot-card"><div class="label">热门生肖</div><div class="value" id="hotZodiac">--</div></div>
+            <div class="hot-card"><div class="label">最热头/尾数</div><div class="value" id="hotHeadTail">--</div></div>
+            <div class="hot-card"><div class="label">波色/五行</div><div class="value" id="hotColorWx">--</div></div>
+            <div class="hot-card full"><div class="label">遗漏总结</div><div class="value" id="hotMiss">--</div></div>
+          </div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>生肖统计 <span class="hot-tag">热门TOP</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门生肖 → <span id="hotZodiac2" class="hot-zodiac-list">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="zodiacDetail">展开详情</button>
+        </div>
+        <div class="detail-box" id="zodiacDetail">
+          <div id="zodiacRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>单双 & 大小 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门 → <span id="hotShape2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail1">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail1">
+          <div class="analysis-grid">
+            <div class="analysis-item"><div class="label">单数</div><div class="value" id="odd">--</div></div>
+            <div class="analysis-item"><div class="label">双数</div><div class="value" id="even">--</div></div>
+            <div class="analysis-item"><div class="label">大(≥25)</div><div class="value" id="big">--</div></div>
+            <div class="analysis-item"><div class="label">小(&lt;25)</div><div class="value" id="small">--</div></div>
+          </div>
+          <div id="singleDoubleRank" class="rank-box"></div>
+          <div id="bigSmallRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>区间统计 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门区间 → <span id="hotRange2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail2">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail2">
+          <div class="analysis-row">
+            <div class="analysis-item"><div class="label">1-9</div><div class="value" id="r1">--</div></div>
+            <div class="analysis-item"><div class="label">10-19</div><div class="value" id="r2">--</div></div>
+            <div class="analysis-item"><div class="label">20-29</div><div class="value" id="r3">--</div></div>
+            <div class="analysis-item"><div class="label">30-39</div><div class="value" id="r4">--</div></div>
+            <div class="analysis-item"><div class="label">40-49</div><div class="value" id="r5">--</div></div>
+          </div>
+          <div id="rangeRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>头数统计 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门头数 → <span id="hotHead2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail3">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail3">
+          <div class="analysis-row">
+            <div class="analysis-item"><div class="label">头0</div><div class="value" id="h0">--</div></div>
+            <div class="analysis-item"><div class="label">头1</div><div class="value" id="h1">--</div></div>
+            <div class="analysis-item"><div class="label">头2</div><div class="value" id="h2">--</div></div>
+            <div class="analysis-item"><div class="label">头3</div><div class="value" id="h3">--</div></div>
+            <div class="analysis-item"><div class="label">头4</div><div class="value" id="h4">--</div></div>
+          </div>
+          <div id="headRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>尾数统计 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门尾数 → <span id="hotTail2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail4">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail4">
+          <div class="analysis-row" id="tailRow"></div>
+          <div id="tailRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>波色统计 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门波色 → <span id="hotColor2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail5">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail5">
+          <div class="analysis-row">
+            <div class="analysis-item"><div class="label">红波</div><div class="value" id="cRed">--</div></div>
+            <div class="analysis-item"><div class="label">蓝波</div><div class="value" id="cBlue">--</div></div>
+            <div class="analysis-item"><div class="label">绿波</div><div class="value" id="cGreen">--</div></div>
+          </div>
+          <div id="colorRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>五行统计 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门五行 → <span id="hotWuxing2" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail6">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail6">
+          <div class="analysis-row">
+            <div class="analysis-item"><div class="label">金</div><div class="value" id="wJin">--</div></div>
+            <div class="analysis-item"><div class="label">木</div><div class="value" id="wMu">--</div></div>
+            <div class="analysis-item"><div class="label">水</div><div class="value" id="wShui">--</div></div>
+            <div class="analysis-item"><div class="label">火</div><div class="value" id="wHuo">--</div></div>
+            <div class="analysis-item"><div class="label">土</div><div class="value" id="wTu">--</div></div>
+          </div>
+          <div id="wuxingRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>家禽/野兽 <span class="hot-tag">热门</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热门 → <span id="hotAnimal" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail7">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail7">
+          <div class="analysis-grid">
+            <div class="analysis-item"><div class="label">家禽</div><div class="value" id="aniHome">--</div></div>
+            <div class="analysis-item"><div class="label">野兽</div><div class="value" id="aniWild">--</div></div>
+          </div>
+          <div id="animalRank" class="rank-box"></div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>遗漏统计 <span class="hot-tag">公式版</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">热号/温号/冷号 → <span id="hotColdTip" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail8">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail8">
+          <div class="analysis-grid">
+            <div class="analysis-item"><div class="label">当前最大遗漏</div><div class="value" id="missCur">--</div></div>
+            <div class="analysis-item"><div class="label">平均遗漏</div><div class="value" id="missAvg">--</div></div>
+            <div class="analysis-item"><div class="label">历史最大遗漏</div><div class="value" id="missMax">--</div></div>
+            <div class="analysis-item"><div class="label">热号数量</div><div class="value" id="missHot">--</div></div>
+            <div class="analysis-item"><div class="label">温号数量</div><div class="value" id="missWarm">--</div></div>
+            <div class="analysis-item"><div class="label">冷号数量</div><div class="value" id="missCold">--</div></div>
+          </div>
+        </div>
+
+        <div class="analysis-sub-title">
+          <span>连出统计 <span class="hot-tag">公式版</span></span>
+        </div>
+        <div class="hot-summary-row">
+          <span class="hot-summary-text">当前/最长连出 → <span id="streakTip" class="hot-value">--</span></span>
+          <button class="toggle-btn" data-action="toggleDetail" data-target="detail9">展开详情</button>
+        </div>
+        <div class="detail-box" id="detail9">
+          <div class="analysis-grid">
+            <div class="analysis-item"><div class="label">当前连出</div><div class="value" id="streakCur">--</div></div>
+            <div class="analysis-item"><div class="label">最长连出</div><div class="value" id="streakMax">--</div></div>
+          </div>
+        </div>
+
+        <div class="analysis-sub-title" style="color:var(--danger)">综合热门特码</div>
+        <div class="analysis-item-full">特码热门TOP5 → <span id="hotNumber" style="color:var(--danger);font-weight:700;">--</span></div>
+      </div>
+    </div>
+
+    <!-- 3. 特码生肖关联模块 -->
+    <div class="analysis-tab-panel" id="zodiacAnalysisPanel">
+      <div class="analysis-card">
+        <div class="analysis-card-title-row">
+          <div class="analysis-card-title" style="color:#13a662;">特码生肖·尾数关联</div>
+        </div>
+        <!-- 期数+号码数量双筛选栏 -->
+        <div class="analysis-filter-bar">
+          <select id="zodiacAnalyzeSelect" class="analysis-filter-select">
+            <option value="12" selected>最近12期</option>
+            <option value="24">最近24期</option>
+            <option value="36">最近36期</option>
+            <option value="all">全年数据</option>
+          </select>
+          <input type="number" id="zodiacCustomNum" class="analysis-filter-input" placeholder="自定义期数">
+          <!-- 号码数量选择器 -->
+          <select id="numCountSelect" class="analysis-filter-select">
+            <option value="5" selected>5个号</option>
+            <option value="10">10个号</option>
+            <option value="15">15个号</option>
+            <option value="20">20个号</option>
+            <option value="custom">自定义</option>
+          </select>
+          <input type="number" id="customNumCount" class="analysis-filter-input" placeholder="自定义数量" style="display:none;">
+          <button class="analysis-filter-btn" data-action="syncZodiacAnalyze">确认</button>
+        </div>
+
+        <div class="empty-tip" id="zodiacEmptyTip">暂无开奖历史数据</div>
+        <div id="zodiacContent" style="display:none;">
+          <div class="core-conclusion">
+            <div class="conclusion-title">🔥 特码真实共振组合</div>
+            <div class="conclusion-item" id="combo1">1. 首选：--</div>
+            <div class="conclusion-item" id="combo2">2. 次选：--</div>
+            <div class="conclusion-item" id="combo3">3. 备选：--</div>
+          </div>
+
+          <div class="analysis-sub-title" style="color:#13a662;">① 特码尾数 → 特码生肖真实关联</div>
+          <div class="data-grid-z" id="tailZodiacGrid"></div>
+
+          <div class="analysis-sub-title" style="color:#13a662;">② 上期特码生肖 → 本期特码生肖跟随</div>
+          <table class="follow-table-z" id="zodiacFollowTable"></table>
+
+          <div class="analysis-sub-title" style="color:#13a662;">③ 12生肖特码冷热统计</div>
+          <div class="data-grid-z data-grid-4" id="zodiacTotalGrid"></div>
+
+          <div class="analysis-sub-title" style="color:#13a662;">④ 高遗漏生肖（反弹关注）</div>
+          <div class="data-grid-z data-grid-3" id="zodiacMissGrid"></div>
+
+          <div class="final-recommend-z" id="zodiacFinalNum">✅ 精选特码：--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 资料页面 -->
+  <div class="page" id="randomPage" style="display:none">
+    <div class="zodiac-tab-bar">
+      <button class="zodiac-tab-btn active" data-zodiac-tab="ultimate">终极算法</button>
+      <button class="zodiac-tab-btn" data-zodiac-tab="predict">生肖预测</button>
+      <button class="zodiac-tab-btn" data-zodiac-tab="giong">Giong</button>
+    </div>
+
+    <!-- 主推面板（滑动窗口预测算法） -->
+    <div class="zodiac-tab-panel" id="zodiacMainPanel">
+      <!-- 数据陈旧度提示 -->
+      <div class="card" id="mainDataFreshnessCard" style="display:none;">
+        <div class="card-body">
+          <div id="mainDataFreshness" class="sw-freshness"></div>
+        </div>
+      </div>
+      <!-- 预测标题 -->
+      <div class="card" id="mainPredictHeaderCard" style="display:none;">
+        <div class="card-body">
+          <div class="analysis-section-title" id="mainPredictTitle"></div>
+        </div>
+      </div>
+      <!-- 主推候选卡片 -->
+      <div class="card" id="mainCandidatesCard" style="display:none;">
+        <div class="card-body">
+          <div id="mainCandidatesGrid"></div>
+        </div>
+      </div>
+      <!-- 评分详细表格 -->
+      <div class="card" id="mainScoreTableCard" style="display:none;">
+        <div class="card-body">
+          <div class="analysis-section-title">详细评分</div>
+          <div id="mainScoreTable"></div>
+        </div>
+      </div>
+      <!-- 空状态 -->
+      <div class="card" id="mainEmptyCard">
+        <div class="card-body">
+          <div class="empty-tip" id="mainEmptyTip">暂无开奖数据，请先刷新历史数据</div>
+        </div>
+      </div>
+      <!-- 主推回测追踪（2026-06-10：原实时推荐记录卡片复用为回测追踪容器，内部由 JS 动态注入 #mainBacktestSection） -->
+      <div class="card" id="mainHistoryListCard" style="display:none;">
+        <div class="card-body">
+          <!-- 回测追踪区块由 ViewSlidingWindowHistory._ensureBacktestContainer() 动态注入 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 生肖预测面板 -->
+    <div class="zodiac-tab-panel active" id="zodiacPredictPanel">
+      <div class="card">
+        <div class="card-body">
+          <div id="zodiacPredictionGrid" class="zodiac-static-grid">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>动态策略</h2>
+        </div>
+        <div class="card-body">
+          <div id="zodiacStrategyPanel" class="zodiac-strategy-panel">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>回测追踪</h2>
+        </div>
+        <div class="card-body">
+          <div id="zodiacBacktestContainer" class="zodiac-backtest-container">
+            <div class="empty-tip">加载中…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Giong 面板：频率评级系统 -->
+    <div class="zodiac-tab-panel" id="zodiacGiongPanel">
+      <div class="card">
+        <div class="card-body">
+          <div id="giongRecommendPanel">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>频率评级表</h2>
+        </div>
+        <div class="card-body">
+          <div id="giongFreqGrid">
+            <div class="empty-tip">加载中…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>最新一期跟随统计</h2>
+        </div>
+        <div class="card-body">
+          <div id="latestFollowStatsPanel">
+            <div class="empty-tip">加载中…</div>
+          </div>
+          <div id="combinedAnalysisPanel"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>区域回测追踪</h2>
+        </div>
+        <div class="card-body">
+          <div id="giongBacktestPanel">
+            <div class="empty-tip">加载中…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 终极算法面板 -->
+    <div class="zodiac-tab-panel" id="zodiacUltimatePanel">
+      <div class="card">
+        <div class="card-header">
+          <h2>终极算法预测</h2>
+          <div id="ultimateExpectDisplay" class="ultimate-expect-display"></div>
+        </div>
+        <div class="card-body">
+          <div id="ultimateResultContainer">
+            <div class="empty-tip">加载中…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>回测追踪</h2>
+        </div>
+        <div class="card-body">
+          <div id="ultimateBacktestContainer">
+            <div class="empty-tip">加载中…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">仅供娱乐，非投注建议</div>
+  </div>
+
+  <!-- 我的页面 -->
+  <div class="page" id="profilePage" style="display:none">
+    <!-- 我的面板 -->
+    <div class="zodiac-tab-panel active" id="profileMinePanel">
+      <div class="card">
+        <div class="card-header">
+          <h2>我的</h2>
+        </div>
+        <div class="card-body">
+          <div class="empty-tip">更多功能开发中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 官方面板 -->
+    <div class="zodiac-tab-panel" id="profileOfficialPanel">
+      <iframe id="officialFrame" style="display:none;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+      <div id="officialLoading" class="empty-tip">正在加载官方...</div>
+    </div>
+
+    <!-- 凤凰面板 -->
+    <div class="zodiac-tab-panel" id="profilePhoenixPanel">
+      <iframe id="phoenixFrame" style="display:none;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+      <div id="phoenixLoading" class="empty-tip">正在加载凤凰...</div>
+    </div>
+
+    <!-- 大仙面板 -->
+    <div class="zodiac-tab-panel" id="profileDaxianPanel">
+      <iframe id="daxianFrame" style="display:none;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+      <div id="daxianLoading" class="empty-tip">正在加载大仙...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 快捷导航 -->
+<div class="quick-nav collapsed" id="quickNav" role="navigation" aria-label="模块快捷导航">
+  <div class="nav-tabs" id="navTabs" style="display:none" role="tablist">
+    <button class="nav-tab" data-target="mod-saved" role="tab">方案</button>
+    <button class="nav-tab" data-target="mod-zodiac" role="tab">生肖</button>
+    <button class="nav-tab" data-target="mod-color" role="tab">波色</button>
+    <button class="nav-tab" data-target="mod-type" role="tab">属性</button>
+    <button class="nav-tab" data-target="mod-element" role="tab">五行</button>
+    <button class="nav-tab" data-target="mod-head" role="tab">头数</button>
+    <button class="nav-tab" data-target="mod-tail" role="tab">尾数</button>
+    <button class="nav-tab" data-target="mod-sum" role="tab">尾合</button>
+    <button class="nav-tab" data-target="mod-bs" role="tab">大小</button>
+    <button class="nav-tab" data-target="mod-num" role="tab">号码选择</button>
+    <button class="nav-tab" data-target="mod-exclude" role="tab">号码排除</button>
+  </div>
+</div>
+
+<!-- 返回顶部按钮 -->
+<button class="back-top-btn" id="backTopBtn" aria-label="返回顶部">↑</button>
+
+<!-- 固定底部导航栏 -->
+<div class="bottom-nav-wrapper">
+  <div class="bottom-nav" role="navigation" aria-label="底部主导航">
+    <div class="bottom-nav-item active" data-action="switchBottomNav" data-index="0">
+      <span>主页</span>
+    </div>
+    <div class="bottom-nav-item" data-action="switchBottomNav" data-index="1">
+      <span>广播</span>
+    </div>
+    <div class="bottom-nav-item" data-action="switchBottomNav" data-index="2">
+      <span>资料</span>
+    </div>
+    <div class="bottom-nav-item" data-action="switchBottomNav" data-index="3">
+      <span>我的</span>
+    </div>
+  </div>
+  <button class="nav-toggle-btn bottom-nav-toggle" id="navToggle" aria-label="展开快捷导航">导航</button>
+</div>
+
+<!-- 轻提示 -->
+<div class="toast" id="toast" role="alert" aria-live="assertive"></div>
+
+<!-- 批量选择弹窗 -->
+<div class="batch-modal" id="batchModal">
+  <div class="batch-modal-overlay" data-action="closeBatchModal"></div>
+  <div class="batch-modal-content">
+    <div class="batch-modal-header">
+      <h3 id="batchModalTitle">批量选择</h3>
+      <span class="batch-modal-close" data-action="closeBatchModal">&times;</span>
+    </div>
+    <div class="batch-modal-body">
+      <p class="batch-modal-hint">支持多种分隔符：逗号、顿号、空格、换行、点、斜杠、连字符等</p>
+      <input class="batch-modal-input" id="batchModalInput" type="text" placeholder="例如：马 牛 虎" autocomplete="off">
+      <button class="batch-modal-btn" data-action="confirmBatchSelect">确认选择</button>
+    </div>
+  </div>
+</div>
+
+<!-- 平台层：模态框（APP切换只需替换此文件夹） -->
+<!-- 弹窗组件（2026-06-05 整理到 platform/web/modals/） -->
+<script src="platform/web/modals/input-modal.js"></script>
+<script src="platform/web/modals/confirm-modal.js"></script>
+<script src="platform/web/modals/zodiac-stat-modal.js"></script>
+<script src="platform/web/modals/unrec-source-modal.js"></script>
+
+<!-- 核心层：配置 → 工具 → 状态 → 存储 -->
+<script src="core/config.js"></script>
+<script src="core/utils.js"></script>
+
+<!-- 平台层：Toast → DOM → 渲染 -->
+<script src="platform/web/toast.js"></script>
+<script src="platform/web/dom.js"></script>
+
+<!-- 数据层：数据查询 → 筛选逻辑 -->
+<script src="data/data-query.js"></script>
+
+<!-- 核心层（续）：依赖数据层的模块 -->
+<script src="core/state.js"></script>
+<script src="core/storage.js"></script>
+
+<!-- 平台层（续）：渲染 -->
+<script src="platform/web/render.js"></script>
+
+<!-- 数据层（续） -->
+<script src="data/filter.js"></script>
+
+<!-- 业务层：禁止DOM操作 -->
+<script src="business/business-cross-exclusion.js"></script>
+<script src="business/business-main.js"></script>
+<!-- 生肖预测（门面 + 5 个子模块，2026-06-05 按文件夹整理到 business/zodiac/） -->
+<script src="business/zodiac/business-zodiac-prediction.js"></script>
+<!-- 兼容路径：business-zodiac-prediction.js 拆分出的子模块（2026-06-05），自动挂载到 ZodiacPrediction 上 -->
+<!-- 子模块按依赖顺序加载：scores → miss → zones → stats → backtest -->
+<script src="business/zodiac/business-zodiac-scores.js"></script>
+<script src="business/zodiac/business-zodiac-miss.js"></script>
+<script src="business/zodiac/business-zodiac-zones.js"></script>
+<script src="business/zodiac/business-zodiac-stats.js"></script>
+<script src="business/zodiac/business-zodiac-backtest.js"></script>
+<script src="business/business-ultimate.js"></script>
+<script src="business/business-giong.js"></script>
+<!-- 滑动窗口（2026-06-05 整理到 business/sliding-window/） -->
+<script src="business/sliding-window/business-sliding-window.js"></script>
+<script src="business/sliding-window/business-sliding-window-history.js"></script>
+<script src="views/view-sliding-window-history.js"></script>
+
+<!-- 视图层 -->
+
+<script src="views/view-common.js"></script>
+    <script src="views/view-filter.js"></script>
+<!-- 兼容路径：view-filter.js 拆分出的子模块（2026-06-05），自动挂载到 ViewFilter 上 -->
+<!-- 弹窗视图子模块（2026-06-05 整理到 views/modals/） -->
+<script src="views/modals/view-batch-modal.js"></script>
+<script src="views/view-quick-nav.js"></script>
+<script src="views/modals/view-overlap-modal.js"></script>
+<script src="views/analysis/view-analysis.js"></script>
+<!-- 分析页标签页子模块（2026-06-09 整理到 views/analysis/） -->
+<script src="views/analysis/view-analysis-history.js"></script>
+<script src="views/analysis/view-analysis-full.js"></script>
+<script src="views/analysis/view-analysis-zodiac.js"></script>
+<script src="views/zodiac/view-zodiac-predict.js"></script>
+<script src="views/zodiac/view-zodiac-main.js"></script>
+<script src="views/zodiac/view-zodiac-giong.js"></script>
+<!-- Giong 综合分析子标签页（2026-06-09 拆分） -->
+<script src="views/zodiac/view-zodiac-giong-size.js"></script>
+<script src="views/zodiac/view-zodiac-giong-oddeven.js"></script>
+<script src="views/zodiac/view-zodiac-giong-wuxing.js"></script>
+<script src="views/zodiac/view-zodiac-giong-color.js"></script>
+<script src="views/zodiac/view-zodiac-ultimate.js"></script>
+<script src="views/view-profile.js"></script>
+
+<!-- 事件层：统一事件委托 -->
+<script src="event.js"></script>
+
+<!-- 入口层：初始化应用 -->
+<script src="app.js"></script>
+
+</body>
+</html>

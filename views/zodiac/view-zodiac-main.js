@@ -45,6 +45,20 @@ const ViewZodiacMain = {
       var cardHtml = '<div class="zp-header-row">';
       cardHtml += '<button class="db-copy-btn" data-action="copyZodiacTop6" type="button" aria-label="复制主推候选生肖"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>';
       cardHtml += '</div>';
+
+      // V1.5 新增：近 12 期热门窗口组合信息条
+      var zca = data.zoneComboAnalysis;
+      if (zca && zca.hotCombos && zca.hotCombos.length > 0 && zca.maxCount >= 2) {
+        cardHtml += '<div class="zone-combo-hot-bar" style="font-size:11px;color:var(--sub-text);padding:6px 8px;background:rgba(90,200,250,0.08);border-left:3px solid #5AC8FA;border-radius:4px;margin-bottom:8px;">';
+        cardHtml += '<span style="color:#5AC8FA;font-weight:600;">🎯 近' + zca.recentN + '期热门组合：</span>';
+        zca.hotCombos.forEach(function(c, i) {
+          if (i > 0) cardHtml += ' <span style="opacity:0.5;">/</span> ';
+          cardHtml += '<span style="color:var(--text);">' + c + '</span>';
+        });
+        cardHtml += ' <span style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</span>';
+        cardHtml += '</div>';
+      }
+
       cardHtml += '<div class="zodiac-pred-grid">';
       data.candidates.forEach(function(item, idx) {
         var rankNum = idx + 1;
@@ -56,9 +70,14 @@ const ViewZodiacMain = {
 
         var scoreColor = item.score >= 60 ? 'color:#30D158;' : (item.score >= 30 ? 'color:#FF9F0A;' : 'color:var(--sub-text);');
 
+        // V1.5 新增：窗口组合命中标记
+        var comboHitHtml = item.zoneComboHit
+          ? '<div class="zodiac-static-sub" style="font-size:10px;color:#5AC8FA;font-weight:600;">🎯 组合命中</div>'
+          : '';
+
         cardHtml += ViewCommon.renderZodiacCardHtml(
           item.shengxiao, rankNum, cardClass, item.emoji,
-          '<div class="zodiac-static-sub" style="font-size:11px;' + scoreColor + '">评分:' + item.score + '</div>'
+          '<div class="zodiac-static-sub" style="font-size:11px;' + scoreColor + '">评分:' + item.score + '</div>' + comboHitHtml
         );
       });
       cardHtml += '</div>';
@@ -77,7 +96,6 @@ const ViewZodiacMain = {
       tableHtml += '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);">24期</th>';
       tableHtml += '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);">36期</th>';
       tableHtml += '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);">评分</th>';
-      tableHtml += '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);">信号</th>';
       tableHtml += '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);">遗漏</th>';
       tableHtml += '</tr></thead><tbody>';
 
@@ -92,15 +110,19 @@ const ViewZodiacMain = {
         var zoneClass24 = ViewCommon.getZoneClass(item.zone24);
         var zoneClass36 = ViewCommon.getZoneClass(item.zone36);
 
-        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);">';
+        tableHtml += '<tr style="' + rowBg + '">';
         tableHtml += '<td style="padding:6px 8px;font-weight:600;">' + item.shengxiao + '</td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window6 + ' <span class="freq-zone-tag ' + zoneClass6 + '" style="font-size:10px;padding:0 4px;">' + item.zone6 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window12 + ' <span class="freq-zone-tag ' + zoneClass12 + '" style="font-size:10px;padding:0 4px;">' + item.zone12 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window24 + ' <span class="freq-zone-tag ' + zoneClass24 + '" style="font-size:10px;padding:0 4px;">' + item.zone24 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window36 + ' <span class="freq-zone-tag ' + zoneClass36 + '" style="font-size:10px;padding:0 4px;">' + item.zone36 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;' + scoreStyle + '">' + item.score + '</td>';
-        tableHtml += '<td style="padding:6px 8px;font-size:11px;">' + (item.signals ? item.signals.join('；') : '—') + '</td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + (item.miss !== undefined ? item.miss + '期' : '—') + '</td>';
+        tableHtml += '</tr>';
+        // 信号单独占一行，跨 7 列（生肖+6/12/24/36期+评分+遗漏）
+        // 仅信号行保留 border-bottom，作为下一生肖组的视觉分隔
+        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);">';
+        tableHtml += '<td colspan="7" style="padding:6px 8px;font-size:11px;">' + (item.signals ? item.signals.join('；') : '—') + '</td>';
         tableHtml += '</tr>';
       });
 

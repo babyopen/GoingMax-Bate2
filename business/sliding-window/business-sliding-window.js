@@ -18,7 +18,7 @@ const BusinessSlidingWindow = {
   SHENGXIAO_ALL: ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'],
 
   /** 算法版本（升级时修改此处） */
-  ALGORITHM_VERSION: '滑动窗口V1.4',
+  ALGORITHM_VERSION: '滑动窗口V1.5',
 
   /** 生肖 Emoji 映射 */
   SHENGXIAO_EMOJI: {
@@ -279,6 +279,81 @@ const BusinessSlidingWindow = {
   },
 
   /**
+   * V1.5 新增：分析近 N 期内每期的"4 窗口区域组合"，找出现次数最多的热门组合
+   * 用于对"当前区域组合匹配近期热门组合"的生肖加分
+   *
+   * 组合格式：zone6-zone12-zone24-zone36（如"短冷号-热号区-活跃区-热号区"）
+   * 每期组合：该期开出生肖在"该期之前"的 4 窗口所属区域
+   *
+   * 例：分析近 12 期
+   *   - 第 i 期：基于 [0..i) 数据计算该生肖的窗口状态
+   *   - 起始 i 至少为 6（保证 6 期窗口有足够样本）
+   *   - 统计每种组合出现次数，返回 maxCount 对应的组合（多组合并列时全部返回）
+   *
+   * @param {Array} zodiacSeq - 生肖序列（正序）
+   * @param {number} [recentN=12] - 分析近 N 期
+   * @returns {{ hotCombos: string[], maxCount: number, comboHistory: Array, recentN: number }}
+   */
+  detectHotZoneCombo: function(zodiacSeq, recentN) {
+    recentN = recentN || 12;
+    var result = { hotCombos: [], maxCount: 0, comboHistory: [], recentN: recentN };
+
+    if (!zodiacSeq || zodiacSeq.length < 2) return result;
+
+    var self = this;
+    var total = zodiacSeq.length;
+    // 起始索引下界：保证 subSeq.length >= 6（6 期窗口需要至少 6 期样本）
+    var startIdx = Math.max(1, total - recentN);
+    var beginIdx = startIdx < 6 ? 6 : startIdx;
+
+    for (var i = beginIdx; i < total; i++) {
+      var sx = zodiacSeq[i].shengxiao;
+      if (!sx || self.SHENGXIAO_ALL.indexOf(sx) === -1) continue;
+
+      // i 期开出前的窗口状态：用 [0..i) 切片重新计算
+      var subSeq = zodiacSeq.slice(0, i);
+      var windows = self.calculateWindows(subSeq);
+      var w6 = windows.window6[sx] || 0;
+      var w12 = windows.window12[sx] || 0;
+      var w24 = windows.window24[sx] || 0;
+      var w36 = windows.window36[sx] || 0;
+
+      var combo = self.getZone6(w6) + '-' + self.getZone12(w12) + '-' + self.getZone24(w24) + '-' + self.getZone36(w36);
+      result.comboHistory.push({
+        expect: zodiacSeq[i].period,
+        shengxiao: sx,
+        combo: combo
+      });
+    }
+
+    // 统计每个组合出现次数
+    var comboCount = {};
+    for (var k = 0; k < result.comboHistory.length; k++) {
+      var c = result.comboHistory[k].combo;
+      comboCount[c] = (comboCount[c] || 0) + 1;
+    }
+
+    // 找出现最多的组合（并列保留）
+    var maxCount = 0;
+    var hotCombos = [];
+    var keys = Object.keys(comboCount);
+    for (var m = 0; m < keys.length; m++) {
+      var key = keys[m];
+      var cnt = comboCount[key];
+      if (cnt > maxCount) {
+        maxCount = cnt;
+        hotCombos = [key];
+      } else if (cnt === maxCount && maxCount > 0) {
+        hotCombos.push(key);
+      }
+    }
+
+    result.hotCombos = hotCombos;
+    result.maxCount = maxCount;
+    return result;
+  },
+
+  /**
    * 基础评分规则表（按数组顺序互斥，最多命中 1 条）
    * 字段说明:
    *   - weight: 命中后基础分
@@ -373,7 +448,21 @@ const BusinessSlidingWindow = {
     { delta: 12, signal: '趋势变热', reason: '趋势：变热中(shortRate高于longRate)+12',
       match: function(ctx) { return ctx.trend === 'HEATING'; } },
     { delta: -12, signal: '趋势变冷', reason: '趋势：变冷中(shortRate低于longRate)-12',
-      match: function(ctx) { return ctx.trend === 'COOLING'; } }
+      match: function(ctx) { return ctx.trend === 'COOLING'; } },
+    // V1.5 新增：近期热门窗口组合命中加分
+    // 逻辑：分析近 12 期每期的 4 窗口区域组合（zone6-zone12-zone24-zone36），
+    //       找出现次数最多的"热门组合"；当前生肖的 4 窗口组合匹配时 +30
+    // 阈值：maxCount >= 2 才触发（避免 maxCount=1 噪声；并列组合均保留）
+    { delta: 30, signal: '窗口组合命中',
+      reasonFn: function(ctx) {
+        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期热门组合(max=' + ctx.hotComboMaxCount + ')+30';
+      },
+      match: function(ctx) {
+        return ctx.hotComboMaxCount >= 2
+          && Array.isArray(ctx.hotCombos)
+          && ctx.hotCombos.length > 0
+          && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1;
+      } }
   ],
 
   /**
@@ -387,9 +476,11 @@ const BusinessSlidingWindow = {
    * @param {Array<string>} [excludedZodiacs] - V1.3.1新增：交叉排除列表
    * @param {Array<string>} [downweightedZodiacs] - V1.4新增：交叉排除 Rule2 触发时的软降权列表
    * @param {number} [downweightFactor] - V1.4新增：软降权系数（0~1；如 0.5 表示分数打 5 折）
+   * @param {Array<string>} [hotCombos] - V1.5新增：近 12 期热门窗口组合（zone6-zone12-zone24-zone36）
+   * @param {number} [hotComboMaxCount] - V1.5新增：热门组合的最高出现次数（用于阈值判定）
    * @returns {Object} 评分结果
    */
-  calculateScore: function(shengxiao, windows, zodiacSeq, rhythm, excludedZodiacs, downweightedZodiacs, downweightFactor) {
+  calculateScore: function(shengxiao, windows, zodiacSeq, rhythm, excludedZodiacs, downweightedZodiacs, downweightFactor, hotCombos, hotComboMaxCount) {
     var self = this;
     // V1.2 兼容：rhythm 可选，未传时使用默认 STEADY
     if (!rhythm) rhythm = { pattern: 'STEADY', detail: '未提供节奏' };
@@ -397,6 +488,9 @@ const BusinessSlidingWindow = {
     // V1.4 新增：Rule 2 软降权参数兼容
     downweightedZodiacs = downweightedZodiacs || [];
     downweightFactor = typeof downweightFactor === 'number' ? downweightFactor : 0;
+    // V1.5 新增：近期热门窗口组合参数兼容
+    hotCombos = Array.isArray(hotCombos) ? hotCombos : [];
+    hotComboMaxCount = typeof hotComboMaxCount === 'number' ? hotComboMaxCount : 0;
 
     // V1.3.1 交叉排除：未被任何模块推荐的生肖直接归零
     if (excludedZodiacs.indexOf(shengxiao) !== -1) {
@@ -469,6 +563,7 @@ const BusinessSlidingWindow = {
     var trendObj = this.detectTrend(w6, w12, w24, w36);
 
     // ========== 阶段 3：修正层（按顺序应用，每条规则独立判断 ctx）==========
+    var currentCombo = zone6 + '-' + zone12 + '-' + zone24 + '-' + zone36;  // V1.5 新增：当前生肖的 4 窗口区域组合
     var ctx = {
       score: score,
       baseScore: baseScore,
@@ -477,7 +572,10 @@ const BusinessSlidingWindow = {
       zone6: zone6, zone12: zone12, zone24: zone24, zone36: zone36,   // V1.1 新增 zone6
       flags: flags,
       rhythm: rhythm,                                     // V1.2 新增：行情节奏
-      trend: trendObj.trend                               // V1.3 新增：个体趋势
+      trend: trendObj.trend,                              // V1.3 新增：个体趋势
+      currentCombo: currentCombo,                         // V1.5 新增：当前生肖窗口组合
+      hotCombos: hotCombos,                               // V1.5 新增：近 12 期热门组合列表
+      hotComboMaxCount: hotComboMaxCount                  // V1.5 新增：热门组合最高出现次数
     };
     for (var k = 0; k < self.SW_MODIFIER_RULES.length; k++) {
       var mod = self.SW_MODIFIER_RULES[k];
@@ -585,7 +683,14 @@ const BusinessSlidingWindow = {
       // V1.4 新增：Rule 2 软降权元信息（用于视图层展示与调试）
       downweighted: isDownweighted,
       downweightFactor: isDownweighted ? downweightFactor : 0,
-      originalScore: originalScore
+      originalScore: originalScore,
+      // V1.5 新增：当前生肖窗口组合信息（用于视图层展示"组合命中"标记）
+      zoneCombo: {
+        current: currentCombo,
+        hotCombos: hotCombos,
+        hotComboMaxCount: hotComboMaxCount,
+        hit: hotComboMaxCount >= 2 && hotCombos.indexOf(currentCombo) !== -1
+      }
     };
   },
 
@@ -620,6 +725,11 @@ const BusinessSlidingWindow = {
 
     // 3. V1.2 新增：识别最近期开奖节奏（用于行情跟随）
     var rhythm = this.detectRecentRhythm(zodiacSeq);
+
+    // 3.5 V1.5 新增：分析近 12 期热门窗口组合（用于"组合命中"加分）
+    var hotComboResult = this.detectHotZoneCombo(zodiacSeq, 12);
+    var hotCombos = hotComboResult.hotCombos;
+    var hotComboMaxCount = hotComboResult.maxCount;
 
     // ============================================================
     // V1.4.2 优化：交叉排除信息获取（避免与调用方重复调用 collectAllRecommend）
@@ -673,7 +783,7 @@ const BusinessSlidingWindow = {
     // 4. 计算所有生肖的评分
     var allScores = [];
     self.SHENGXIAO_ALL.forEach(function(sx) {
-      var scoreObj = self.calculateScore(sx, windows, zodiacSeq, rhythm, excludedZodiacs, downweightedZodiacs, downweightFactor);
+      var scoreObj = self.calculateScore(sx, windows, zodiacSeq, rhythm, excludedZodiacs, downweightedZodiacs, downweightFactor, hotCombos, hotComboMaxCount);
       allScores.push(scoreObj);
     });
 
@@ -713,7 +823,9 @@ const BusinessSlidingWindow = {
         miss: item.miss,
         // V1.4 新增：Rule 2 软降权信息（视图层可展示）
         downweighted: item.downweighted || false,
-        originalScore: item.originalScore != null ? item.originalScore : item.score
+        originalScore: item.originalScore != null ? item.originalScore : item.score,
+        // V1.5 新增：窗口组合命中标记（视图层可展示"组合命中"标签）
+        zoneComboHit: item.zoneCombo ? item.zoneCombo.hit : false
       };
     });
 
@@ -753,7 +865,9 @@ const BusinessSlidingWindow = {
         excludedCount: excludedZodiacs.length,
         downweighted: downweightedZodiacs || [],
         downweightFactor: downweightFactor || 0
-      }
+      },
+      // V1.5 新增：近期热门窗口组合分析（供视图层展示"热门组合命中"信息）
+      zoneComboAnalysis: hotComboResult
     };
   },
 

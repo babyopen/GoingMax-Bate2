@@ -462,8 +462,17 @@ const BusinessSlidingWindow = {
     { delta: -25, reasonFn: function(ctx) { return '冷补不重复：' + ctx.miss + '期前刚开过(-25)'; },
       match: function(ctx) { return ctx.miss <= 2 && !ctx.flags.strongest; } },
     // 冷补不重复 - miss === 3：非最强信号 -15
+    // V1.5.3 改进：当前生肖窗口组合命中近 12 期最热/次热组合时豁免（组合规律优先于冷补）
     { delta: -15, reason: '冷补不重复：3期前刚开过(-15)',
-      match: function(ctx) { return ctx.miss === 3 && !ctx.flags.strongest; } },
+      match: function(ctx) {
+        return ctx.miss === 3 && !ctx.flags.strongest
+          && !(ctx.hotComboMaxCount >= 2
+            && Array.isArray(ctx.hotCombos)
+            && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1)
+          && !(ctx.secondMaxCount >= 2
+            && Array.isArray(ctx.secondHotCombos)
+            && ctx.secondHotCombos.indexOf(ctx.currentCombo) !== -1);
+      } },
     // 接近冷补期 - miss 4-5：双热号豁免说明
     { delta: 0, reason: '接近冷补期：双热号保留(不扣分)',
       match: function(ctx) { return (ctx.miss === 4 || ctx.miss === 5) && ctx.flags.dualHot; } },
@@ -478,11 +487,18 @@ const BusinessSlidingWindow = {
           && (ctx.zone36 === '冷号区' || ctx.zone36 === '穿插区');
       } },
     // 冷补排除 - 12期1次 + 24/36期双冷 → 直接归零（替代原 -50，避免叠加后仍 > 0）
+    // V1.5.3 改进：当前生肖窗口组合命中近 12 期最热/次热组合时豁免（组合规律优先于冷补）
     { delta: 0, reason: '冷补排除：12期穿插+24/36双冷号区', setScoreZero: true,
       match: function(ctx) {
         return ctx.w12 === 1
           && (ctx.zone24 === '冷号区' || ctx.zone24 === '穿插区')
-          && (ctx.zone36 === '冷号区' || ctx.zone36 === '穿插区');
+          && (ctx.zone36 === '冷号区' || ctx.zone36 === '穿插区')
+          && !(ctx.hotComboMaxCount >= 2
+            && Array.isArray(ctx.hotCombos)
+            && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1)
+          && !(ctx.secondMaxCount >= 2
+            && Array.isArray(ctx.secondHotCombos)
+            && ctx.secondHotCombos.indexOf(ctx.currentCombo) !== -1);
       } },
     // 11期解权机制 - 修复漏洞 4：仅在 score < 60 时触发（避免削掉高分）
     { delta: -15, reasonFn: function(ctx) { return '12期降权中（11期解权：' + ctx.w11 + '/' + ctx.w12 + '，保留）'; },

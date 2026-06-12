@@ -46,7 +46,9 @@ const ViewZodiacMain = {
       cardHtml += '<button class="db-copy-btn" data-action="copyZodiacTop6" type="button" aria-label="复制主推候选生肖"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>';
       cardHtml += '</div>';
 
-      // V1.5/V1.5.1 新增：近 12 期热门/次热窗口组合信息条（每个组合 span 独占一行）
+      // V1.5/V1.5.1 新增：近 12 期热门/次热窗口组合信息条
+      // 布局策略：grid 三列（标题 / 组合 / 次数），第一行标题与第一个组合同行，
+      //          后续组合在下方行（第一列留空，自动缩进到组合文字起始位置）
       var zca = data.zoneComboAnalysis;
       if (zca) {
         var hasHot = zca.hotCombos && zca.hotCombos.length > 0 && zca.maxCount >= 2;
@@ -54,23 +56,29 @@ const ViewZodiacMain = {
         if (hasHot || hasSecond) {
           cardHtml += '<div class="zone-combo-hot-bar" style="font-size:11px;color:var(--sub-text);padding:6px 8px;background:rgba(90,200,250,0.08);border-left:3px solid #5AC8FA;border-radius:4px;margin-bottom:8px;">';
           if (hasHot) {
-            cardHtml += '<div style="color:#5AC8FA;font-weight:600;margin-bottom:2px;">🎯 近' + zca.recentN + '期最热：</div>';
-            zca.hotCombos.forEach(function(c, i) {
-              cardHtml += '<div style="padding-left:14px;">';
-              cardHtml += '<span style="color:var(--text);">' + c + '</span>';
-              cardHtml += ' <span style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</span>';
-              cardHtml += '</div>';
-            });
+            cardHtml += '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:baseline;">';
+            cardHtml += '<div style="color:#5AC8FA;font-weight:600;">🎯 近' + zca.recentN + '期最热：</div>';
+            cardHtml += '<div style="color:var(--text);">' + zca.hotCombos[0] + '</div>';
+            cardHtml += '<div style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</div>';
+            for (var hi = 1; hi < zca.hotCombos.length; hi++) {
+              cardHtml += '<div></div>';
+              cardHtml += '<div style="color:var(--text);">' + zca.hotCombos[hi] + '</div>';
+              cardHtml += '<div style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</div>';
+            }
+            cardHtml += '</div>';
           }
           if (hasSecond) {
             if (hasHot) cardHtml += '<div style="height:6px;"></div>';
-            cardHtml += '<div style="color:#FF9F0A;font-weight:600;margin-bottom:2px;">🥈 次热：</div>';
-            zca.secondHotCombos.forEach(function(c, i) {
-              cardHtml += '<div style="padding-left:14px;">';
-              cardHtml += '<span style="color:var(--text);">' + c + '</span>';
-              cardHtml += ' <span style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</span>';
-              cardHtml += '</div>';
-            });
+            cardHtml += '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:baseline;">';
+            cardHtml += '<div style="color:#FF9F0A;font-weight:600;">🥈 次热：</div>';
+            cardHtml += '<div style="color:var(--text);">' + zca.secondHotCombos[0] + '</div>';
+            cardHtml += '<div style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</div>';
+            for (var si = 1; si < zca.secondHotCombos.length; si++) {
+              cardHtml += '<div></div>';
+              cardHtml += '<div style="color:var(--text);">' + zca.secondHotCombos[si] + '</div>';
+              cardHtml += '<div style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</div>';
+            }
+            cardHtml += '</div>';
           }
           cardHtml += '</div>';
         }

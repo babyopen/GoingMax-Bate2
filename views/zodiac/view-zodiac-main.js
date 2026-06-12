@@ -46,17 +46,32 @@ const ViewZodiacMain = {
       cardHtml += '<button class="db-copy-btn" data-action="copyZodiacTop6" type="button" aria-label="复制主推候选生肖"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>';
       cardHtml += '</div>';
 
-      // V1.5 新增：近 12 期热门窗口组合信息条
+      // V1.5/V1.5.1 新增：近 12 期热门/次热窗口组合信息条
       var zca = data.zoneComboAnalysis;
-      if (zca && zca.hotCombos && zca.hotCombos.length > 0 && zca.maxCount >= 2) {
-        cardHtml += '<div class="zone-combo-hot-bar" style="font-size:11px;color:var(--sub-text);padding:6px 8px;background:rgba(90,200,250,0.08);border-left:3px solid #5AC8FA;border-radius:4px;margin-bottom:8px;">';
-        cardHtml += '<span style="color:#5AC8FA;font-weight:600;">🎯 近' + zca.recentN + '期热门组合：</span>';
-        zca.hotCombos.forEach(function(c, i) {
-          if (i > 0) cardHtml += ' <span style="opacity:0.5;">/</span> ';
-          cardHtml += '<span style="color:var(--text);">' + c + '</span>';
-        });
-        cardHtml += ' <span style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</span>';
-        cardHtml += '</div>';
+      if (zca) {
+        var hasHot = zca.hotCombos && zca.hotCombos.length > 0 && zca.maxCount >= 2;
+        var hasSecond = zca.secondHotCombos && zca.secondHotCombos.length > 0 && zca.secondMaxCount >= 2;
+        if (hasHot || hasSecond) {
+          cardHtml += '<div class="zone-combo-hot-bar" style="font-size:11px;color:var(--sub-text);padding:6px 8px;background:rgba(90,200,250,0.08);border-left:3px solid #5AC8FA;border-radius:4px;margin-bottom:8px;">';
+          if (hasHot) {
+            cardHtml += '<span style="color:#5AC8FA;font-weight:600;">🎯 近' + zca.recentN + '期最热：</span>';
+            zca.hotCombos.forEach(function(c, i) {
+              if (i > 0) cardHtml += ' <span style="opacity:0.5;">/</span> ';
+              cardHtml += '<span style="color:var(--text);">' + c + '</span>';
+            });
+            cardHtml += ' <span style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</span>';
+          }
+          if (hasSecond) {
+            if (hasHot) cardHtml += '<br/>';
+            cardHtml += '<span style="color:#FF9F0A;font-weight:600;">🥈 次热：</span>';
+            zca.secondHotCombos.forEach(function(c, i) {
+              if (i > 0) cardHtml += ' <span style="opacity:0.5;">/</span> ';
+              cardHtml += '<span style="color:var(--text);">' + c + '</span>';
+            });
+            cardHtml += ' <span style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</span>';
+          }
+          cardHtml += '</div>';
+        }
       }
 
       cardHtml += '<div class="zodiac-pred-grid">';
@@ -70,10 +85,13 @@ const ViewZodiacMain = {
 
         var scoreColor = item.score >= 60 ? 'color:#30D158;' : (item.score >= 30 ? 'color:#FF9F0A;' : 'color:var(--sub-text);');
 
-        // V1.5 新增：窗口组合命中标记
-        var comboHitHtml = item.zoneComboHit
-          ? '<div class="zodiac-static-sub" style="font-size:10px;color:#5AC8FA;font-weight:600;">🎯 组合命中</div>'
-          : '';
+        // V1.5/V1.5.1 新增：窗口组合命中标记（最热 vs 次热 互斥）
+        var comboHitHtml = '';
+        if (item.zoneComboHit) {
+          comboHitHtml = '<div class="zodiac-static-sub" style="font-size:10px;color:#5AC8FA;font-weight:600;">🎯 最热命中</div>';
+        } else if (item.zoneComboSecondHit) {
+          comboHitHtml = '<div class="zodiac-static-sub" style="font-size:10px;color:#FF9F0A;font-weight:600;">🥈 次热命中</div>';
+        }
 
         cardHtml += ViewCommon.renderZodiacCardHtml(
           item.shengxiao, rankNum, cardClass, item.emoji,

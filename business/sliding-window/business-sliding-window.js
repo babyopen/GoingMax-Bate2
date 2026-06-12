@@ -279,16 +279,17 @@ const BusinessSlidingWindow = {
   },
 
   /**
-   * V1.5 新增（V1.5.1 升级为"最热+次热"两级）：分析近 N 期内每期的"4 窗口区域组合"
+   * V1.5 新增（V1.5.1 升级为"最热+次热"两级，V1.5.2 改为 3 窗口组合）：
+   * 分析近 N 期内每期的"3 窗口区域组合"（zone12-zone24-zone36）
    * 找出出现次数最多的"最热组合"和第二多的"次热组合"
    * 用于对"当前区域组合匹配近期热门/次热组合"的生肖加分（最热 +30 / 次热 +15）
    *
-   * 组合格式：zone6-zone12-zone24-zone36（如"短冷号-热号区-活跃区-热号区"）
-   * 每期组合：该期开出生肖在"该期之前"的 4 窗口所属区域
+   * 组合格式：zone12-zone24-zone36（如"热号区-活跃区-热号区"）
+   * 每期组合：该期开出生肖在"该期之前"的 3 窗口所属区域
    *
    * 例：分析近 12 期
    *   - 第 i 期：基于 [0..i) 数据计算该生肖的窗口状态
-   *   - 起始 i 至少为 6（保证 6 期窗口有足够样本）
+   *   - 起始 i 至少为 1（3 窗口组合不再依赖 6 期窗口）
    *   - 统计每种组合出现次数，按次数降序排序
    *   - 最热 = 次数最多（并列时全部返回）；次热 = 次数第二多（排除最热）
    *
@@ -315,9 +316,9 @@ const BusinessSlidingWindow = {
 
     var self = this;
     var total = zodiacSeq.length;
-    // 起始索引下界：保证 subSeq.length >= 6（6 期窗口需要至少 6 期样本）
+    // 起始索引下界：3 窗口组合不依赖 6 期窗口数据，从 i=1 起即可
     var startIdx = Math.max(1, total - recentN);
-    var beginIdx = startIdx < 6 ? 6 : startIdx;
+    var beginIdx = startIdx < 1 ? 1 : startIdx;
 
     for (var i = beginIdx; i < total; i++) {
       var sx = zodiacSeq[i].shengxiao;
@@ -326,12 +327,12 @@ const BusinessSlidingWindow = {
       // i 期开出前的窗口状态：用 [0..i) 切片重新计算
       var subSeq = zodiacSeq.slice(0, i);
       var windows = self.calculateWindows(subSeq);
-      var w6 = windows.window6[sx] || 0;
       var w12 = windows.window12[sx] || 0;
       var w24 = windows.window24[sx] || 0;
       var w36 = windows.window36[sx] || 0;
 
-      var combo = self.getZone6(w6) + '-' + self.getZone12(w12) + '-' + self.getZone24(w24) + '-' + self.getZone36(w36);
+      // V1.5.2：组合从 4 窗口（6/12/24/36）改为 3 窗口（12/24/36），移除 zone6
+      var combo = self.getZone12(w12) + '-' + self.getZone24(w24) + '-' + self.getZone36(w36);
       result.comboHistory.push({
         expect: zodiacSeq[i].period,
         shengxiao: sx,
@@ -482,9 +483,9 @@ const BusinessSlidingWindow = {
       match: function(ctx) { return ctx.trend === 'HEATING'; } },
     { delta: -12, signal: '趋势变冷', reason: '趋势：变冷中(shortRate低于longRate)-12',
       match: function(ctx) { return ctx.trend === 'COOLING'; } },
-    // V1.5 新增：近期热门窗口组合命中加分（最热一级 +30）
-    // 逻辑：分析近 12 期每期的 4 窗口区域组合（zone6-zone12-zone24-zone36），
-    //       找出现次数最多的"最热组合"；当前生肖的 4 窗口组合匹配时 +30
+    // V1.5 新增（V1.5.2 改为 3 窗口）：近期热门窗口组合命中加分（最热一级 +30）
+    // 逻辑：分析近 12 期每期的 3 窗口区域组合（zone12-zone24-zone36），
+    //       找出现次数最多的"最热组合"；当前生肖的 3 窗口组合匹配时 +30
     // 阈值：maxCount >= 2 才触发（避免 maxCount=1 噪声；并列组合均保留）
     { delta: 30, signal: '窗口组合命中',
       reasonFn: function(ctx) {
@@ -496,8 +497,8 @@ const BusinessSlidingWindow = {
           && ctx.hotCombos.length > 0
           && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1;
       } },
-    // V1.5.1 新增：次热窗口组合命中加分（次热一级 +15）
-    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +15
+    // V1.5.1 新增（V1.5.2 改为 3 窗口）：次热窗口组合命中加分（次热一级 +15）
+    // 逻辑：当前生肖的 3 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +15
     // 阈值：secondMaxCount >= 2 触发；与最热规则互斥（currentCombo 只可能命中其一）
     { delta: 15, signal: '次热窗口组合命中',
       reasonFn: function(ctx) {
@@ -616,7 +617,8 @@ const BusinessSlidingWindow = {
     var trendObj = this.detectTrend(w6, w12, w24, w36);
 
     // ========== 阶段 3：修正层（按顺序应用，每条规则独立判断 ctx）==========
-    var currentCombo = zone6 + '-' + zone12 + '-' + zone24 + '-' + zone36;  // V1.5 新增：当前生肖的 4 窗口区域组合
+    // V1.5.2：当前生肖的组合改为 3 窗口（zone12-zone24-zone36），移除 zone6
+    var currentCombo = zone12 + '-' + zone24 + '-' + zone36;
     var ctx = {
       score: score,
       baseScore: baseScore,
@@ -626,7 +628,7 @@ const BusinessSlidingWindow = {
       flags: flags,
       rhythm: rhythm,                                     // V1.2 新增：行情节奏
       trend: trendObj.trend,                              // V1.3 新增：个体趋势
-      currentCombo: currentCombo,                         // V1.5 新增：当前生肖窗口组合
+      currentCombo: currentCombo,                         // V1.5 新增：当前生肖窗口组合（V1.5.2 改为 3 窗口）
       hotCombos: hotCombos,                               // V1.5 新增：近 12 期最热组合列表
       hotComboMaxCount: hotComboMaxCount,                 // V1.5 新增：最热组合最高出现次数
       secondHotCombos: secondHotCombos,                   // V1.5.1 新增：次热组合列表

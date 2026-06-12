@@ -501,8 +501,9 @@ const BusinessSlidingWindow = {
             && ctx.secondHotCombos.indexOf(ctx.currentCombo) !== -1);
       } },
     // 11期解权机制 - 修复漏洞 4：仅在 score < 60 时触发（避免削掉高分）
+    // V1.5.3 调整：w11<2 时才扣分（w11===2 正常评分，w11>=3 已在 predict 阶段被排除）
     { delta: -15, reasonFn: function(ctx) { return '12期降权中（11期解权：' + ctx.w11 + '/' + ctx.w12 + '，保留）'; },
-      match: function(ctx) { return ctx.w12 >= 3 && ctx.w11 <= 2 && ctx.score < 60; } },
+      match: function(ctx) { return ctx.w12 >= 3 && ctx.w11 < 2 && ctx.score < 60; } },
     // V1.3 新增：趋势加成 —— 变热中加分，变冷中扣分
     { delta: 12, signal: '趋势变热', reason: '趋势：变热中(shortRate高于longRate)+12',
       match: function(ctx) { return ctx.trend === 'HEATING'; } },
@@ -871,8 +872,15 @@ const BusinessSlidingWindow = {
     }
 
     // 4. 计算所有生肖的评分
+    // V1.5.3 新增：12期窗口与11期窗口同时 ≥3 的生肖直接移除候选池
+    // （热度封顶，无继续推荐价值；w11===2 仍可正常评分，w11<2 触发 11期解权 -15）
+    var excludedByDoubleHot = [];
     var allScores = [];
     self.SHENGXIAO_ALL.forEach(function(sx) {
+      if (windows.window12[sx] >= 3 && windows.window11[sx] >= 3) {
+        excludedByDoubleHot.push(sx);
+        return;  // 跳过 calculateScore，生肖进入候选池时会被过滤
+      }
       var scoreObj = self.calculateScore(sx, windows, zodiacSeq, rhythm, excludedZodiacs, downweightedZodiacs, downweightFactor, hotCombos, hotComboMaxCount, secondHotCombos, secondMaxCount);
       allScores.push(scoreObj);
     });

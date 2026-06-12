@@ -385,6 +385,14 @@ const BusinessSlidingWindow = {
     result.maxCount = maxCount;
     result.secondHotCombos = secondHotCombos;
     result.secondMaxCount = secondMaxCount;
+    // V1.5.3 新增：样本量防护
+    // 当统计样本 < 4 期时 maxCount 噪声过大，归零避免误触发
+    if (result.comboHistory.length < 4) {
+      result.hotCombos = [];
+      result.maxCount = 0;
+      result.secondHotCombos = [];
+      result.secondMaxCount = 0;
+    }
     return result;
   },
 

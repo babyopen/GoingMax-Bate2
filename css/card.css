@@ -2258,6 +2258,43 @@
 .zone-change-combo-list:not(.expanded) .zone-change-combo-item.zone-change-hidden {
   display: none;
 }
+
+/* ===================================
+   主推面板"详细评分"表格折叠功能（2026-06-12）
+   - 默认只展示前 2 名（top 2）
+   - 第 3 名起的 tr 加 sw-row-hidden class
+   - 点击"展开更多"按钮后给 wrap 加 .expanded
+   - 由 view-zodiac-main.js 渲染、event.js 处理
+   =================================== */
+/* 默认隐藏 sw-row-hidden 行（tr 元素） */
+.sw-score-table-wrap tr.sw-row-hidden {
+  display: none;
+}
+/* 展开时显示 sw-row-hidden 行 */
+.sw-score-table-wrap.expanded tr.sw-row-hidden {
+  display: table-row;
+}
+/* 展开/折叠按钮（参考 zone-change-toggle 风格） */
+.sw-score-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 0 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #5AC8FA;
+  user-select: none;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.sw-score-toggle:hover {
+  opacity: 0.8;
+}
+.sw-score-toggle-icon {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
 .zone-change-combo-item .zone-change-expect {
   min-width: 60px;
   font-size: 11px;

@@ -340,6 +340,27 @@ const EventBinder = {
         if (comboToggleText) comboToggleText.textContent = isComboExpanded ? '收起' : '展开更多';
         if (comboToggleIcon) comboToggleIcon.textContent = isComboExpanded ? '▲' : '▼';
       }
+      // 主推面板"详细评分"表格展开/折叠（2026-06-12）
+      else if(action === 'toggleScoreTable') {
+        var scoreWrap = actionBtn.closest('.sw-score-table-wrap');
+        if (!scoreWrap) return;
+        var isScoreExpanded = scoreWrap.classList.toggle('expanded');
+        var scoreToggleText = actionBtn.querySelector('.sw-score-toggle-text');
+        var scoreToggleIcon = actionBtn.querySelector('.sw-score-toggle-icon');
+        // 从按钮文本中提取总条数（用于展开后的"收起"）
+        // 简化：直接根据 isScoreExpanded 切换文案
+        if (isScoreExpanded) {
+          if (scoreToggleText) scoreToggleText.textContent = '收起';
+          if (scoreToggleIcon) scoreToggleIcon.textContent = '▲';
+        } else {
+          // 折叠时显示完整文案（含条数）；从 wrap 中所有 sw-row-hidden 数量推断总条数
+          var totalRows = scoreWrap.querySelectorAll('tr.sw-row-hidden').length / 2;
+          if (scoreToggleText) scoreToggleText.textContent = '展开更多（共' + Math.round(totalRows + 2) + '条）';
+          if (scoreToggleIcon) scoreToggleIcon.textContent = '▼';
+        }
+        // 持久化用户偏好
+        Storage.saveScoreTableExpanded(isScoreExpanded);
+      }
       else if(action === 'showZodiacStat') {
         var zodiac = actionBtn.dataset.zodiac;
         if (zodiac && ViewZodiacGiong._cachedFreqResult) {

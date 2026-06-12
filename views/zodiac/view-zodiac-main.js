@@ -115,7 +115,13 @@ const ViewZodiacMain = {
     // 3. 渲染评分详细表格（所有12生肖）
     var scoreTable = document.getElementById('mainScoreTable');
     if (scoreTable) {
-      var tableHtml = '<div class="sw-table-wrapper" style="overflow-x:auto;">';
+      // V1.5.2 新增：默认只展示前 2 名（top 2），其余折叠
+      var visibleCount = 2;
+      var preferExpanded = Storage.getScoreTableExpanded();
+      var wrapClass = preferExpanded ? 'sw-score-table-wrap expanded' : 'sw-score-table-wrap';
+
+      var tableHtml = '<div class="' + wrapClass + '">';
+      tableHtml += '<div class="sw-table-wrapper" style="overflow-x:auto;">';
       tableHtml += '<table class="sw-score-table" style="width:100%;border-collapse:collapse;font-size:12px;">';
       tableHtml += '<thead><tr style="background:var(--bg-secondary);">';
       tableHtml += '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);">生肖</th>';
@@ -128,7 +134,7 @@ const ViewZodiacMain = {
       tableHtml += '</tr></thead><tbody>';
 
       var allScores = data.allScores || [];
-      allScores.forEach(function(item) {
+      allScores.forEach(function(item, idx) {
         var isTop6 = data.candidates.some(function(c) { return c.shengxiao === item.shengxiao; });
         var rowBg = isTop6 ? 'background:rgba(48,209,88,0.06);' : '';
         var scoreStyle = item.score >= 60 ? 'color:#30D158;font-weight:700;' : (item.score >= 30 ? 'color:#FF9F0A;font-weight:600;' : 'color:var(--sub-text);');
@@ -138,7 +144,10 @@ const ViewZodiacMain = {
         var zoneClass24 = ViewCommon.getZoneClass(item.zone24);
         var zoneClass36 = ViewCommon.getZoneClass(item.zone36);
 
-        tableHtml += '<tr style="' + rowBg + '">';
+        // V1.5.2 新增：第 3 名起的"主行"和"信号行"加 sw-row-hidden（仅用于折叠，CSS 控制显示）
+        var hiddenClass = (idx >= visibleCount) ? ' sw-row-hidden' : '';
+
+        tableHtml += '<tr style="' + rowBg + '" class="' + (hiddenClass ? 'sw-row-hidden' : '').trim() + '">';
         tableHtml += '<td style="padding:6px 8px;font-weight:600;">' + item.shengxiao + '</td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window6 + ' <span class="freq-zone-tag ' + zoneClass6 + '" style="font-size:10px;padding:0 4px;">' + item.zone6 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window12 + ' <span class="freq-zone-tag ' + zoneClass12 + '" style="font-size:10px;padding:0 4px;">' + item.zone12 + '</span></td>';
@@ -149,12 +158,24 @@ const ViewZodiacMain = {
         tableHtml += '</tr>';
         // 信号单独占一行，跨 7 列（生肖+6/12/24/36期+评分+遗漏）
         // 仅信号行保留 border-bottom，作为下一生肖组的视觉分隔
-        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);">';
+        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);" class="' + (hiddenClass ? 'sw-row-hidden' : '').trim() + '">';
         tableHtml += '<td colspan="7" style="padding:6px 8px;font-size:11px;">' + (item.signals ? item.signals.join('；') : '—') + '</td>';
         tableHtml += '</tr>';
       });
 
       tableHtml += '</tbody></table></div>';
+
+      // 展开/折叠按钮（超过 visibleCount 条时显示）
+      if (allScores.length > visibleCount) {
+        var toggleLabel = preferExpanded ? '收起' : '展开更多（共' + allScores.length + '条）';
+        var toggleIcon = preferExpanded ? '▲' : '▼';
+        tableHtml += '<div class="sw-score-toggle" data-action="toggleScoreTable">';
+        tableHtml += '<span class="sw-score-toggle-text">' + toggleLabel + '</span>';
+        tableHtml += '<span class="sw-score-toggle-icon">' + toggleIcon + '</span>';
+        tableHtml += '</div>';
+      }
+      tableHtml += '</div>';
+
       scoreTable.innerHTML = tableHtml;
     }
   },

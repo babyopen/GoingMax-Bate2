@@ -14,6 +14,8 @@ const Storage = {
     MARK_HINT_SHOWN: 'markHintShown',
     // 用户偏好（区域变动追踪卡片展开状态）
     ZONE_CHANGE_EXPANDED: 'zoneChangeExpanded',
+    // 用户偏好（主推面板"详细评分"表格展开状态）
+    SCORE_TABLE_EXPANDED: 'scoreTableExpanded',
     // 当前主页临时筛选状态（新增：用于后台返回/页面刷新后恢复未保存的筛选）
     CURRENT_FILTER: 'currentFilter'
     // 注：页面子标签记忆（profile/analysis/random）改由 TAB_MEMORY 配置表管理，见下方
@@ -185,6 +187,22 @@ const Storage = {
    */
   saveZoneChangeExpanded: (expanded) => {
     return Storage.set(Storage.KEYS.ZONE_CHANGE_EXPANDED, !!expanded);
+  },
+
+  /**
+   * 获取主推面板"详细评分"表格的展开状态
+   * @returns {boolean} 是否展开（默认 false：折叠）
+   */
+  getScoreTableExpanded: () => {
+    return Storage.get(Storage.KEYS.SCORE_TABLE_EXPANDED, false);
+  },
+
+  /**
+   * 保存主推面板"详细评分"表格的展开状态
+   * @param {boolean} expanded - 是否展开
+   */
+  saveScoreTableExpanded: (expanded) => {
+    return Storage.set(Storage.KEYS.SCORE_TABLE_EXPANDED, !!expanded);
   },
 
   // ============================================================

@@ -523,12 +523,12 @@ const BusinessSlidingWindow = {
           && ctx.hotCombos.length > 0
           && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1;
       } },
-    // V1.5.1 新增（V1.5.3 改回 4 窗口）：次热窗口组合命中加分（次热一级 +50，与最热齐平）
-    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +50
+    // V1.5.1 新增（V1.5.3 改回 4 窗口）：次热窗口组合命中加分（次热一级 +30，与最热 +50 拉开差距）
+    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +30
     // 阈值：secondMaxCount >= 2 触发；与最热规则互斥（currentCombo 只可能命中其一）
-    { delta: 50, signal: '次热窗口组合命中',
+    { delta: 30, signal: '次热窗口组合命中',
       reasonFn: function(ctx) {
-        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期次热组合(max=' + ctx.secondMaxCount + ')+50';
+        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期次热组合(max=' + ctx.secondMaxCount + ')+30';
       },
       match: function(ctx) {
         return ctx.hotComboMaxCount >= 2

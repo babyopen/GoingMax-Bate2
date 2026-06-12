@@ -483,9 +483,9 @@ const BusinessSlidingWindow = {
       match: function(ctx) { return ctx.trend === 'HEATING'; } },
     { delta: -12, signal: '趋势变冷', reason: '趋势：变冷中(shortRate低于longRate)-12',
       match: function(ctx) { return ctx.trend === 'COOLING'; } },
-    // V1.5 新增（V1.5.2 改为 3 窗口）：近期热门窗口组合命中加分（最热一级 +30）
-    // 逻辑：分析近 12 期每期的 3 窗口区域组合（zone12-zone24-zone36），
-    //       找出现次数最多的"最热组合"；当前生肖的 3 窗口组合匹配时 +30
+    // V1.5 新增（V1.5.3 改回 4 窗口）：近期热门窗口组合命中加分（最热一级 +30）
+    // 逻辑：分析近 12 期每期的 4 窗口区域组合（zone6-zone12-zone24-zone36），
+    //       找出现次数最多的"最热组合"；当前生肖的 4 窗口组合匹配时 +30
     // 阈值：maxCount >= 2 才触发（避免 maxCount=1 噪声；并列组合均保留）
     { delta: 30, signal: '窗口组合命中',
       reasonFn: function(ctx) {
@@ -497,8 +497,8 @@ const BusinessSlidingWindow = {
           && ctx.hotCombos.length > 0
           && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1;
       } },
-    // V1.5.1 新增（V1.5.2 改为 3 窗口）：次热窗口组合命中加分（次热一级 +15）
-    // 逻辑：当前生肖的 3 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +15
+    // V1.5.1 新增（V1.5.3 改回 4 窗口）：次热窗口组合命中加分（次热一级 +15）
+    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +15
     // 阈值：secondMaxCount >= 2 触发；与最热规则互斥（currentCombo 只可能命中其一）
     { delta: 15, signal: '次热窗口组合命中',
       reasonFn: function(ctx) {
@@ -617,8 +617,8 @@ const BusinessSlidingWindow = {
     var trendObj = this.detectTrend(w6, w12, w24, w36);
 
     // ========== 阶段 3：修正层（按顺序应用，每条规则独立判断 ctx）==========
-    // V1.5.2：当前生肖的组合改为 3 窗口（zone12-zone24-zone36），移除 zone6
-    var currentCombo = zone12 + '-' + zone24 + '-' + zone36;
+    // V1.5.3：当前生肖的组合改回 4 窗口（zone6-zone12-zone24-zone36），加回 zone6
+    var currentCombo = zone6 + '-' + zone12 + '-' + zone24 + '-' + zone36;
     var ctx = {
       score: score,
       baseScore: baseScore,
@@ -628,7 +628,7 @@ const BusinessSlidingWindow = {
       flags: flags,
       rhythm: rhythm,                                     // V1.2 新增：行情节奏
       trend: trendObj.trend,                              // V1.3 新增：个体趋势
-      currentCombo: currentCombo,                         // V1.5 新增：当前生肖窗口组合（V1.5.2 改为 3 窗口）
+      currentCombo: currentCombo,                         // V1.5 新增：当前生肖窗口组合（V1.5.3 改回 4 窗口）
       hotCombos: hotCombos,                               // V1.5 新增：近 12 期最热组合列表
       hotComboMaxCount: hotComboMaxCount,                 // V1.5 新增：最热组合最高出现次数
       secondHotCombos: secondHotCombos,                   // V1.5.1 新增：次热组合列表

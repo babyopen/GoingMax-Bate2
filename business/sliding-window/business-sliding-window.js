@@ -508,13 +508,13 @@ const BusinessSlidingWindow = {
       match: function(ctx) { return ctx.trend === 'HEATING'; } },
     { delta: -12, signal: '趋势变冷', reason: '趋势：变冷中(shortRate低于longRate)-12',
       match: function(ctx) { return ctx.trend === 'COOLING'; } },
-    // V1.5 新增（V1.5.3 改回 4 窗口）：近期热门窗口组合命中加分（最热一级 +30）
+    // V1.5 新增（V1.5.3 改回 4 窗口）：近期热门窗口组合命中加分（最热一级 +50）
     // 逻辑：分析近 12 期每期的 4 窗口区域组合（zone6-zone12-zone24-zone36），
-    //       找出现次数最多的"最热组合"；当前生肖的 4 窗口组合匹配时 +30
+    //       找出现次数最多的"最热组合"；当前生肖的 4 窗口组合匹配时 +50
     // 阈值：maxCount >= 2 才触发（避免 maxCount=1 噪声；并列组合均保留）
-    { delta: 30, signal: '窗口组合命中',
+    { delta: 50, signal: '窗口组合命中',
       reasonFn: function(ctx) {
-        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期最热组合(max=' + ctx.hotComboMaxCount + ')+30';
+        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期最热组合(max=' + ctx.hotComboMaxCount + ')+50';
       },
       match: function(ctx) {
         return ctx.hotComboMaxCount >= 2
@@ -522,12 +522,12 @@ const BusinessSlidingWindow = {
           && ctx.hotCombos.length > 0
           && ctx.hotCombos.indexOf(ctx.currentCombo) !== -1;
       } },
-    // V1.5.1 新增（V1.5.3 改回 4 窗口）：次热窗口组合命中加分（次热一级 +15）
-    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +15
+    // V1.5.1 新增（V1.5.3 改回 4 窗口）：次热窗口组合命中加分（次热一级 +30）
+    // 逻辑：当前生肖的 4 窗口组合匹配"次热组合"（次数第二多，排除最热）时 +30
     // 阈值：secondMaxCount >= 2 触发；与最热规则互斥（currentCombo 只可能命中其一）
-    { delta: 15, signal: '次热窗口组合命中',
+    { delta: 30, signal: '次热窗口组合命中',
       reasonFn: function(ctx) {
-        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期次热组合(max=' + ctx.secondMaxCount + ')+15';
+        return '窗口组合：当前(' + ctx.currentCombo + ')命中近期次热组合(max=' + ctx.secondMaxCount + ')+30';
       },
       match: function(ctx) {
         return ctx.hotComboMaxCount >= 2

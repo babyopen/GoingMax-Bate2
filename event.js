@@ -280,7 +280,23 @@ const EventBinder = {
         Business.copySelectedZodiacs();
       }
       // 导航操作
-      else if(action === CONFIG.ACTIONS.SWITCH_NAV) Business.switchBottomNav(Number(index));
+      // 需求：点击底部导航栏标签时弹出快捷导航栏（复用 toggleQuickNav）
+      //  - 当前页面再点：toggle 弹出/收回快捷导航栏
+      //  - 切换到其他页面：先切页面再强制关闭快捷导航栏
+      else if(action === CONFIG.ACTIONS.SWITCH_NAV) {
+        var targetIdx = Number(index);
+        var navItems = document.querySelectorAll('.bottom-nav-item');
+        var activeNavItem = document.querySelector('.bottom-nav-item.active');
+        var currentIdx = activeNavItem ? Array.prototype.indexOf.call(navItems, activeNavItem) : -1;
+        if(currentIdx === targetIdx){
+          // 当前页面再次点击：toggle 弹出/收回快捷导航栏（复用现有逻辑）
+          Business.toggleQuickNav();
+        } else {
+          // 切换到其他页面：先切页面再强制关闭快捷导航栏
+          Business.switchBottomNav(targetIdx);
+          Business.toggleQuickNav(false);
+        }
+      }
       // 分析页面操作
       else if(action === 'refreshHistory') Business.refreshHistory();
       else if(action === 'syncAnalyze') Business.syncAnalyze();
@@ -480,6 +496,9 @@ const EventBinder = {
    */
   handleClickOutside: (e) => {
     if(DOM.navToggle && DOM.navToggle.contains(e.target)) return;
+    // 底部导航按钮由 handleGlobalClick 中的 SWITCH_NAV 逻辑自行处理（toggle/不弹），
+    // 此处不应再触发关闭，避免覆盖刚刚 toggle 打开的状态
+    if(e.target.closest && e.target.closest('.bottom-nav-item')) return;
     if(DOM.quickNav && !DOM.quickNav.contains(e.target) && DOM.quickNav.classList.contains('expanded')){
       Business.toggleQuickNav(false);
     }

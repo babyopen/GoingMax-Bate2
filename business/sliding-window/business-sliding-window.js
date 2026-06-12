@@ -312,13 +312,13 @@ const BusinessSlidingWindow = {
       comboHistory: [], recentN: recentN
     };
 
-    if (!zodiacSeq || zodiacSeq.length < 2) return result;
+    if (!zodiacSeq || zodiacSeq.length < 7) return result;
 
     var self = this;
     var total = zodiacSeq.length;
-    // 起始索引下界：3 窗口组合不依赖 6 期窗口数据，从 i=1 起即可
+    // 起始索引下界：保证 subSeq.length >= 6（6 期窗口需要至少 6 期样本）
     var startIdx = Math.max(1, total - recentN);
-    var beginIdx = startIdx < 1 ? 1 : startIdx;
+    var beginIdx = startIdx < 6 ? 6 : startIdx;
 
     for (var i = beginIdx; i < total; i++) {
       var sx = zodiacSeq[i].shengxiao;
@@ -327,12 +327,13 @@ const BusinessSlidingWindow = {
       // i 期开出前的窗口状态：用 [0..i) 切片重新计算
       var subSeq = zodiacSeq.slice(0, i);
       var windows = self.calculateWindows(subSeq);
+      var w6 = windows.window6[sx] || 0;
       var w12 = windows.window12[sx] || 0;
       var w24 = windows.window24[sx] || 0;
       var w36 = windows.window36[sx] || 0;
 
-      // V1.5.2：组合从 4 窗口（6/12/24/36）改为 3 窗口（12/24/36），移除 zone6
-      var combo = self.getZone12(w12) + '-' + self.getZone24(w24) + '-' + self.getZone36(w36);
+      // V1.5.3：组合从 3 窗口（12/24/36）改回 4 窗口（6/12/24/36），加回 zone6
+      var combo = self.getZone6(w6) + '-' + self.getZone12(w12) + '-' + self.getZone24(w24) + '-' + self.getZone36(w36);
       result.comboHistory.push({
         expect: zodiacSeq[i].period,
         shengxiao: sx,

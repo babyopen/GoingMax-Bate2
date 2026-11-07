@@ -210,58 +210,6 @@ const BusinessCrossExclusion = {
   },
 
   /**
-   * 快捷方法：直接获取排除列表（兼容旧接口）
-   *
-   * @param {Array} historyData - 历史数据
-   * @returns {Array<string>} 未被任何模块推荐的生肖数组
-   */
-  getExcludedZodiacs: function(historyData) {
-    return this.collectAllRecommend(historyData).excluded;
-  },
-
-  /**
-   * [新增] 快捷方法：获取 Rule 2 触发时的降权生肖列表
-   * 仅在 Rule 1 排除列表为空（3 源全覆盖）时才有返回值
-   *
-   * @param {Array} historyData - 历史数据
-   * @returns {Array<string>} 需要降权扣分的生肖数组（被 3 源推荐但未被 Giong+终极算法 推荐的生肖）
-   */
-  getDownweightedZodiacs: function(historyData) {
-    return this.collectAllRecommend(historyData).downweighted;
-  },
-
-  /**
-   * [新增] 快捷方法：获取当前 Rule 2 降权系数
-   * 0 表示未触发降权；>0 表示将上述生肖的最终评分乘以该系数
-   *
-   * @param {Array} historyData - 历史数据
-   * @returns {number} 降权系数（默认 0.5）
-   */
-  getDownweightFactor: function(historyData) {
-    return this.collectAllRecommend(historyData).downweightFactor;
-  },
-
-  /**
-   * [新增] 判断 Rule 2 是否触发
-   * @param {Array} historyData - 历史数据
-   * @returns {boolean} true = Rule 2 触发；false = Rule 1 已生效硬排除
-   */
-  isRule2Triggered: function(historyData) {
-    return this.collectAllRecommend(historyData).rule2Triggered === true;
-  },
-
-  /**
-   * 判断某个生肖是否被排除
-   *
-   * @param {string} shengxiao - 目标生肖
-   * @param {Array<string>} excludedZodiacs - 排除列表
-   * @returns {boolean}
-   */
-  isExcluded: function(shengxiao, excludedZodiacs) {
-    return excludedZodiacs && excludedZodiacs.indexOf(shengxiao) !== -1;
-  },
-
-  /**
    * 诊断工具：打印当前最新一期各推荐源的推荐详情
    * 浏览器控制台执行：BusinessCrossExclusion.diagnose()
    */
@@ -269,7 +217,7 @@ const BusinessCrossExclusion = {
     var state = StateManager._state;
     var historyData = state.analysis.historyData;
     if (!historyData || !historyData.length) {
-      historyData = Storage.get('historyCache', []);
+      historyData = Storage.get(Storage.KEYS.HISTORY_DATA, []);
     }
     if (!historyData || !historyData.length) {
       console.log('暂无历史数据');

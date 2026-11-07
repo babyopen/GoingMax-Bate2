@@ -14,7 +14,7 @@ const ZodiacPredictionBacktest = {
   _runGenericBacktest: function(historyData, testCount, config) {
     if (!historyData || historyData.length < 10) return null;
 
-    testCount = Math.min(testCount || 12, 12);
+    testCount = Math.min(testCount || 30, 30);
     var results = [];
     var maxOffset = Math.min(testCount, historyData.length - 6);
 
@@ -125,7 +125,7 @@ const ZodiacPredictionBacktest = {
     var hitCount = results.filter(function(r) { return r.isHit; }).length;
     var hitRate = Math.round((hitCount / results.length) * 100);
 
-    var recentResults = results.slice(0, 10);
+    var recentResults = results.slice(0, 30);
     var recentHitCount = recentResults.filter(function(r) { return r.isHit; }).length;
     var recentHitRate = recentResults.length > 0 ? Math.round((recentHitCount / recentResults.length) * 100) : 0;
 
@@ -321,7 +321,7 @@ const ZodiacPredictionBacktest = {
 
     var hitCount = results.filter(function(r) { return r.isHit; }).length;
     var hitRate = Math.round((hitCount / results.length) * 100);
-    var recentResults = results.slice(0, 12);
+    var recentResults = results.slice(0, 30);
     var recentHits = recentResults.filter(function(r) { return r.isHit; }).length;
     var recentHitRate = recentResults.length > 0 ? Math.round((recentHits / recentResults.length) * 100) : 0;
     var currentStreak = 0;

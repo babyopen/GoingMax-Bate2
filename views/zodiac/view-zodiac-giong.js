@@ -510,7 +510,14 @@ const ViewZodiacGiong = {
       { ws: 24, label: '24期窗口', data: p24Data },
       { ws: 36, label: '36期窗口', data: p36Data }
     ];
-    html += '<div class="zone-change-combo-stats-grid">';
+
+    // 2026-06-16：应用持久化的折叠状态
+    var preferCollapsed = Storage.getComboStatsCollapsed();
+    var gridClass = 'zone-change-combo-stats-grid' + (preferCollapsed ? ' collapsed' : '');
+    var statsToggleText = preferCollapsed ? '展开统计' : '收起统计';
+    var statsToggleIcon = preferCollapsed ? '▼' : '▲';
+
+    html += '<div class="' + gridClass + '">';
     statsList.forEach(function(s) {
       html += '<div class="zone-change-combo-stats-col">';
       html += '<div class="zone-change-combo-stats-title">' + s.label + '·变动最多</div>';
@@ -553,6 +560,11 @@ const ViewZodiacGiong = {
 
       html += '</div>';
     });
+    html += '</div>';
+    // 2026-06-16：折叠/展开按钮
+    html += '<div class="zone-change-toggle" data-action="toggleZoneChangeComboStats">';
+    html += '<span class="zone-change-toggle-text">' + statsToggleText + '</span>';
+    html += '<span class="zone-change-toggle-icon">' + statsToggleIcon + '</span>';
     html += '</div>';
 
     html += '<div class="zone-change-combo-list">';

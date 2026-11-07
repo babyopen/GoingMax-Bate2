@@ -356,6 +356,23 @@ const EventBinder = {
         if (comboToggleText) comboToggleText.textContent = isComboExpanded ? '收起' : '展开更多';
         if (comboToggleIcon) comboToggleIcon.textContent = isComboExpanded ? '▲' : '▼';
       }
+      // 多窗口组合统计 grid 折叠/展开（2026-06-16 新增）
+      else if(action === 'toggleZoneChangeComboStats') {
+        // 该按钮的兄弟节点就是 .zone-change-combo-stats-grid
+        var statsGrid = actionBtn.previousElementSibling;
+        if (!statsGrid || !statsGrid.classList.contains('zone-change-combo-stats-grid')) {
+          // 兜底：向上找父级的 grid
+          var parent = actionBtn.parentElement;
+          if (parent) statsGrid = parent.querySelector('.zone-change-combo-stats-grid');
+        }
+        if (!statsGrid) return;
+        var isCollapsed = statsGrid.classList.toggle('collapsed');
+        var statsText = actionBtn.querySelector('.zone-change-toggle-text');
+        var statsIcon = actionBtn.querySelector('.zone-change-toggle-icon');
+        if (statsText) statsText.textContent = isCollapsed ? '展开统计' : '收起统计';
+        if (statsIcon) statsIcon.textContent = isCollapsed ? '▼' : '▲';
+        Storage.saveComboStatsCollapsed(isCollapsed);
+      }
       // 主推面板"详细评分"表格展开/折叠（2026-06-12）
       else if(action === 'toggleScoreTable') {
         var scoreWrap = actionBtn.closest('.sw-score-table-wrap');
@@ -531,7 +548,7 @@ const EventBinder = {
         return;
       }
 
-      var backtestData = ZodiacPrediction.runSizeBacktest(historyData, 15);
+      var backtestData = ZodiacPrediction.runSizeBacktest(historyData, 30);
 
       if (!backtestData) {
         Toast.show('回测执行失败，请重试');
@@ -563,7 +580,7 @@ const EventBinder = {
         return;
       }
 
-      var backtestData = ZodiacPrediction.runOddEvenBacktest(historyData, 15);
+      var backtestData = ZodiacPrediction.runOddEvenBacktest(historyData, 30);
 
       if (!backtestData) {
         Toast.show('回测执行失败，请重试');
@@ -595,7 +612,7 @@ const EventBinder = {
         return;
       }
 
-      var backtestData = ZodiacPrediction.runWuxingBacktest(historyData, 15);
+      var backtestData = ZodiacPrediction.runWuxingBacktest(historyData, 30);
 
       if (!backtestData) {
         Toast.show('回测执行失败，请重试');
@@ -624,7 +641,7 @@ const EventBinder = {
         return;
       }
 
-      var backtestData = ZodiacPrediction.runColorBacktest(historyData, 12);
+      var backtestData = ZodiacPrediction.runColorBacktest(historyData, 30);
       if (!backtestData) {
         Toast.show('回测执行失败，请重试');
         return;
@@ -655,7 +672,7 @@ const EventBinder = {
         return;
       }
 
-      var backtestData = ZodiacPrediction.runFinalZodiacBacktest(historyData, 20);
+      var backtestData = ZodiacPrediction.runFinalZodiacBacktest(historyData, 30);
       if (!backtestData) {
         Toast.show('回测执行失败，请重试');
         return;

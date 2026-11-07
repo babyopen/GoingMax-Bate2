@@ -144,7 +144,6 @@ const BusinessUltimate = {
 
     this.saveAdaptiveState(state);
 
-
     return state;
   },
 
@@ -189,7 +188,6 @@ const BusinessUltimate = {
   },
 
   WINDOW_SIZE: 12,
-  AUX_WINDOW_SIZE: 24,
   DOWN_WEIGHT_THRESHOLD: 3,
   RELEASE_WINDOW: 11,
   RELEASE_THRESHOLD: 2,
@@ -202,10 +200,6 @@ const BusinessUltimate = {
     return this.countFrequency(history, this.RELEASE_WINDOW);
   },
 
-  getCurrent24Freq: function(history) {
-    return this.countFrequency(history, this.AUX_WINDOW_SIZE);
-  },
-
   getNext12Freq: function(history) {
     if (history.length <= this.WINDOW_SIZE) {
       return this.getCurrent12Freq(history);
@@ -214,50 +208,12 @@ const BusinessUltimate = {
     return this.countFrequency(newHistory, this.WINDOW_SIZE);
   },
 
-  getNumberPositions: function(history, num, windowSize) {
-    var positions = [];
-    var recent = history.slice(-windowSize);
-    for (var i = 0; i < recent.length; i++) {
-      if (recent[i].number === num) {
-        positions.push(recent.length - 1 - i);
-      }
-    }
-    return positions;
-  },
-
   getCoolingInfo: function() {
     return Storage.get('ultimateCooling', {});
   },
 
   saveCoolingInfo: function(coolingInfo) {
     Storage.set('ultimateCooling', coolingInfo);
-  },
-
-  updateCoolingInfo: function(history, blackList) {
-    var cooling = this.getCoolingInfo();
-    var sortedHistory = history.slice().sort(function(a, b) { return a.issue - b.issue; });
-
-    var i, num, positions, count;
-    for (num = 1; num <= 12; num++) {
-      positions = this.getNumberPositions(history, num, this.WINDOW_SIZE);
-      count = positions.length;
-
-      if (count >= 3) {
-        if (!cooling[num]) cooling[num] = { count: 0, coolingCount: 0 };
-        cooling[num].count = count;
-        cooling[num].lastSeen = sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].issue : 0;
-        if (blackList.indexOf(num) !== -1) {
-          cooling[num].coolingCount = 0;
-        }
-      } else {
-        if (cooling[num]) {
-          cooling[num].coolingCount = (cooling[num].coolingCount || 0) + 1;
-        }
-      }
-    }
-
-    this.saveCoolingInfo(cooling);
-    return cooling;
   },
 
   getDownWeightBlackList: function(history) {
@@ -277,26 +233,7 @@ const BusinessUltimate = {
       }
     }
 
-
     return blackList;
-  },
-
-  _isAtCriticalEdge: function(history, num, windowSize) {
-    var positions = this.getNumberPositions(history, num, windowSize);
-    if (positions.length < 3) return false;
-
-    positions.sort(function(a, b) { return a - b; });
-    var earliestPos = positions[0];
-    return earliestPos >= windowSize - 2;
-  },
-
-  _isIntensivePattern: function(history, num, windowSize) {
-    var positions = this.getNumberPositions(history, num, windowSize);
-    if (positions.length < 3) return false;
-
-    positions.sort(function(a, b) { return a - b; });
-    var span = positions[positions.length - 1] - positions[0];
-    return span <= 5;
   },
 
   filterByWeight: function(history, candidateNums, config) {
@@ -769,20 +706,6 @@ const BusinessUltimate = {
     Storage.set(this.RECOMMEND_HISTORY_KEY, history);
   },
 
-  isNumberDowngraded: function(num, windowSize) {
-    windowSize = windowSize || 12;
-    var history = this.getRecommendHistory();
-    var recentHistory = history.slice(0, windowSize);
-    var count = 0;
-    for (var i = 0; i < recentHistory.length; i++) {
-      if (recentHistory[i].numbers.indexOf(num) !== -1) {
-        count++;
-        if (count >= 3) return true;
-      }
-    }
-    return false;
-  },
-
   runBacktest: function(historyData) {
     if (!historyData || historyData.length < 25) return null;
 
@@ -797,7 +720,6 @@ const BusinessUltimate = {
     var records = [];
     var maxBacktest = Math.min(40, historyData.length - 15);
     var self = this;
-
 
     for (var i = 0; i < maxBacktest; i++) {
       var predictHistory = historyData.slice(0, historyData.length - i - 1);
@@ -963,149 +885,6 @@ const BusinessUltimate = {
     return Storage.get(this.BACKTEST_KEY, null);
   },
 
-  analyzeHitRateOptimization: function(historyData) {
-    var backtestResult = this.runBacktest(historyData);
-    if (!backtestResult || !backtestResult.records) return null;
-
-    var records = backtestResult.records;
-    var self = this;
-
-
-    var stageStats = {};
-    var numberFreq = {};
-    var blackListImpact = { inBlackList: 0, notInBlackList: 0 };
-    var positionStats = { rank1: 0, rank2: 0, rank3: 0, miss: 0 };
-    var consecutiveMiss = 0;
-    var maxConsecutiveMiss = 0;
-
-    for (var i = 0; i < records.length; i++) {
-      var r = records[i];
-      var stage = r.stage || 'UNKNOWN';
-
-      if (!stageStats[stage]) {
-        stageStats[stage] = { total: 0, hits: 0, hitRate: 0 };
-      }
-      stageStats[stage].total++;
-      if (r.hit) {
-        stageStats[stage].hits++;
-        consecutiveMiss = 0;
-        positionStats['rank' + r.hitRank]++;
-        
-        var actualNum = self._getZodiacNum(r.actualZodiac);
-        if (actualNum) {
-          numberFreq[actualNum] = (numberFreq[actualNum] || 0) + 1;
-        }
-      } else {
-        consecutiveMiss++;
-        if (consecutiveMiss > maxConsecutiveMiss) {
-          maxConsecutiveMiss = consecutiveMiss;
-        }
-        positionStats.miss++;
-
-        if (r.actualInBlackList) {
-          blackListImpact.inBlackList++;
-        } else {
-          blackListImpact.notInBlackList++;
-        }
-      }
-    }
-
-    for (var s in stageStats) {
-      stageStats[s].hitRate = Math.round((stageStats[s].hits / stageStats[s].total) * 100);
-    }
-
-    for (var s in stageStats) {
-      var st = stageStats[s];
-    }
-
-    var totalMiss = backtestResult.total - backtestResult.hits;
-
-    var sortedNumbers = Object.keys(numberFreq).sort(function(a, b) { return numberFreq[b] - numberFreq[a]; });
-    sortedNumbers.forEach(function(num, idx) {
-      var freq = numberFreq[num];
-      var pct = Math.round(freq / totalMiss * 100);
-      var analysis = '';
-      if (pct >= 20) analysis = '🔴 高频未命中，需关注';
-      else if (pct >= 10) analysis = '🟡 中频，可能被过度降权';
-      else analysis = '🟢 正常';
-      
-    });
-
-
-    var suggestions = [];
-    
-    if (blackListImpact.inBlackList > totalMiss * 0.5) {
-      suggestions.push({
-        priority: '🔴 高',
-        title: '降权规则过严',
-        detail: '超过50%的未命中是因为实际号码在降权黑名单中。建议：放宽降权条件或缩短冷却期'
-      });
-    }
-
-    if (maxConsecutiveMiss >= 5) {
-      suggestions.push({
-        priority: '🔴 高',
-        title: '存在长连亏',
-        detail: '最长连亏' + maxConsecutiveMiss + '期，建议：连亏3期后切换策略或暂停'
-      });
-    }
-
-    for (var s in stageStats) {
-      if (stageStats[s].total >= 5 && stageStats[s].hitRate < 30) {
-        suggestions.push({
-          priority: '🟠 中',
-          title: s + '命中率偏低',
-          detail: '该阶段命中率仅' + stageStats[s].hitRate + '%%，建议调整该阶段的选号逻辑'
-        });
-      }
-    }
-
-    if (positionStats.rank1 < backtestResult.total * 0.15) {
-      suggestions.push({
-        priority: '🟡 低',
-        title: '第1名命中率不足',
-        detail: '当前仅' + Math.round(positionStats.rank1 / backtestResult.total * 100) + '%，建议调整顺延逻辑让热号更靠前'
-      });
-    }
-
-    if (suggestions.length === 0) {
-    } else {
-      suggestions.sort(function(a, b) {
-        var order = { '🔴 高': 0, '🟠 中': 1, '🟡 低': 2 };
-        return order[a.priority] - order[b.priority];
-      });
-
-      suggestions.forEach(function(sug, idx) {
-      });
-    }
-
-
-    return {
-      stageStats: stageStats,
-      blackListImpact: blackListImpact,
-      numberFreq: numberFreq,
-      positionStats: positionStats,
-      maxConsecutiveMiss: maxConsecutiveMiss,
-      suggestions: suggestions
-    };
-  },
-
-  _padLeft: function(str, len) {
-    str = String(str);
-    while (str.length < len) str = ' ' + str;
-    return str;
-  },
-
-  _padRight: function(str, len) {
-    str = String(str);
-    while (str.length < len) str += ' ';
-    return str;
-  },
-
-  _getZodiacNum: function(zodiacName) {
-    var map = { '马': 1, '蛇': 2, '龙': 3, '兔': 4, '虎': 5, '牛': 6, '鼠': 7, '猪': 8, '狗': 9, '鸡': 10, '猴': 11, '羊': 12 };
-    return map[zodiacName] || null;
-  }
 };
 
 BusinessUltimate.init();

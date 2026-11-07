@@ -968,29 +968,5 @@ const BusinessSlidingWindow = {
       // V1.5 新增：近期热门窗口组合分析（供视图层展示"热门组合命中"信息）
       zoneComboAnalysis: hotComboResult
     };
-  },
-
-  /**
-   * 获取所有12生肖的窗口区域概览（用于区域分布表格展示）
-   *
-   * @param {Object} windows - 窗口计数
-   * @returns {Array} 区域概览数组
-   */
-  getZoneOverview: function(windows) {
-    var self = this;
-    var result = [];
-    self.SHENGXIAO_ALL.forEach(function(sx) {
-      result.push({
-        shengxiao: sx,
-        emoji: self.SHENGXIAO_EMOJI[sx] || '❓',
-        window12: windows.window12[sx] || 0,
-        window24: windows.window24[sx] || 0,
-        window36: windows.window36[sx] || 0,
-        zone12: self.getZone12(windows.window12[sx] || 0),
-        zone24: self.getZone24(windows.window24[sx] || 0),
-        zone36: self.getZone36(windows.window36[sx] || 0)
-      });
-    });
-    return result;
   }
 };

@@ -1,5 +1,7 @@
 async function initApp() {
   try {
+    // 0. 清理 localStorage 中的废弃键（历史功能移除后遗留）
+    Storage.cleanupOrphanKeys();
     // 1. 生成生肖数据
     Render.buildZodiacCycle();
     // 2. 生成号码基础数据
@@ -35,7 +37,7 @@ async function initApp() {
     Render.renderAll();
     // 16. 隐藏加载遮罩
     Render.hideLoading();
-    
+
     console.log(`Gemini v${CONFIG.VERSION} 初始化完成，当前农历生肖：${StateManager._state.currentZodiac}`);
   } catch(e) {
     console.error('应用初始化失败', e);

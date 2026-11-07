@@ -56,71 +56,6 @@ const ViewCommon = {
     return 'backtest-rate-low';
   },
 
-  // ============================================================
-  // DOM 元素缓存机制（2026-06-09 性能优化）
-  // ============================================================
-
-  /**
-   * DOM 元素缓存 Map（全局共享）
-   * 避免重复调用 document.getElementById，提升 DOM 查询性能
-   */
-  _domCache: new Map(),
-
-  /**
-   * 获取缓存的 DOM 元素（性能优化：避免重复查询）
-   * @param {string} id - 元素 ID
-   * @returns {HTMLElement|null}
-   */
-  $: function(id) {
-    if (!ViewCommon._domCache.has(id)) {
-      var el = document.getElementById(id);
-      if (el) ViewCommon._domCache.set(id, el);
-    }
-    return ViewCommon._domCache.get(id) || null;
-  },
-
-  /**
-   * 批量获取 DOM 元素并返回对象
-   * @param {string[]} ids - 元素 ID 数组
-   * @returns {Object} id → 元素 的映射对象
-   */
-  $batch: function(ids) {
-    var result = {};
-    ids.forEach(function(id) {
-      result[id] = ViewCommon.$(id);
-    });
-    return result;
-  },
-
-  /**
-   * 清除指定 ID 的 DOM 缓存
-   * @param {string} [id] - 元素 ID，不传则清空所有
-   */
-  clearDomCache: function(id) {
-    if (id) {
-      ViewCommon._domCache.delete(id);
-    } else {
-      ViewCommon._domCache.clear();
-    }
-  },
-
-  // ============================================================
-  // HTML 字符串数组拼接优化（2026-06-09 性能优化）
-  // ============================================================
-
-  /**
-   * 创建 HTML 数组构建器（使用数组 join 替代字符串 + 拼接，性能更好）
-   * @returns {{parts: string[], push: Function, toString: Function}}
-   */
-  createHtmlBuilder: function() {
-    var parts = [];
-    return {
-      parts: parts,
-      push: function(str) { parts.push(str); return this; },
-      toString: function() { return parts.join(''); }
-    };
-  },
-
   /**
    * 渲染生肖静态卡片 HTML（4 处共用，2026-06-09 重构提取，原 ViewZodiacPrediction._renderZodiacCardHtml）
    * @param {string} zodiac 生肖名
@@ -371,7 +306,7 @@ const ViewCommon = {
    *   - recentTests: 最近测试期数
    *   - recentHits: 最近命中数
    *   - recentHitRate: 最近命中率
-   *   - details: 明细数组 [{ expect, isHit, predicted, actual, value }]
+   *   - details: 明细数组 [{ expect, isHit, predicted, actual, actualNumber }]
    * @param {Object} [config.labels] - 标签配置
    *   - predicted: '预测'
    *   - actual: '实际'
@@ -429,14 +364,14 @@ const ViewCommon = {
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
 
     (bd.details || []).forEach(function(item) {
-      var hitBg = item.isHit ? hl + '1f' : 'rgba(255,69,58,0.12)';
-      var hitColor = item.isHit ? hl : '#FF453A';
+      var hitBg = item.isHit ? 'rgba(10,132,255,0.18)' : 'rgba(255,69,58,0.12)';
+      var hitColor = item.isHit ? '#0A84FF' : '#FF453A';
       var hitIcon = item.isHit ? '✓' : '✗';
       var fmtVal = config.formatValue ? config.formatValue(item) : { pred: item.predicted, actual: item.actual };
 
       html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:' + hitBg + ';color:' + hitColor + ';">';
       html += '<span style="font-size:12px;font-weight:600;">' + item.expect + '期</span>';
-      html += '<span style="font-size:14px;font-weight:700;">' + item.value + '</span>';
+      html += '<span style="font-size:14px;font-weight:700;">' + (item.actualNumber !== undefined ? item.actualNumber : '-') + '</span>';
       html += '<span style="font-size:12px;font-weight:600;">' + labels.predicted + ':' + fmtVal.pred + '</span>';
       html += '<span style="font-size:12px;font-weight:600;">' + labels.actual + ':' + fmtVal.actual + '</span>';
       html += '<span style="font-size:16px;font-weight:700;">' + hitIcon + '</span>';

@@ -1923,6 +1923,7 @@
   border-radius: 6px;
   border-left: 3px solid #9333EA;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   cursor: pointer;
@@ -1951,10 +1952,11 @@
   font-size: 10px;
   color: var(--sub-text);
   opacity: 0.8;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 100%;
+  margin-top: 4px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 /* ===================================
@@ -2198,6 +2200,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 12px;
+}
+/* 多窗口组合统计 grid 折叠状态（2026-06-16 新增） */
+.zone-change-combo-stats-grid.collapsed {
+  display: none;
 }
 .zone-change-combo-stats-col {
   background: rgba(255,255,255,0.03);

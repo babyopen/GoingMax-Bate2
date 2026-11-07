@@ -241,20 +241,6 @@ const Utils = {
   },
 
   /**
-   * 获取数组前N个元素
-   * @param {Array} arr - 数组
-   * @param {number} n - 数量
-   * @returns {Array} 前N个元素
-   */
-  takeFirst: (arr, n) => {
-    const result = [];
-    for(let i = 0; i < Math.min(n, arr.length); i++) {
-      result.push(arr[i]);
-    }
-    return result;
-  },
-
-  /**
    * 统一定时器管理器（防止内存泄漏）
    * @namespace TimerManager
    */
@@ -333,109 +319,6 @@ const Utils = {
       timeouts: Utils.TimerManager._timers.size,
       intervals: Utils.TimerManager._intervals.size
     })
-  },
-
-  /**
-   * 数据验证工具（防止无效输入导致异常）
-   * @namespace Validator
-   */
-  Validator: {
-    /**
-     * 验证历史数据数组格式
-     * @param {Array} data - 历史数据数组
-     * @returns {{ valid: boolean, error: string|null, data: Array }}
-     */
-    validateHistoryData: (data) => {
-      if (!Array.isArray(data)) {
-        return { valid: false, error: '历史数据必须是数组', data: [] };
-      }
-      if (data.length === 0) {
-        return { valid: false, error: '历史数据为空', data: [] };
-      }
-
-      const validated = data.filter(item => {
-        if (!item || typeof item !== 'object') return false;
-        const expect = item.expect;
-        const openCode = item.openCode;
-        if (!expect && expect !== 0) return false;
-        if (!openCode || typeof openCode !== 'string') return false;
-        const codes = openCode.split(',');
-        return codes.length === 7 && codes.every(c => !isNaN(Number(c)));
-      });
-
-      if (validated.length === 0) {
-        return { valid: false, error: '无有效历史数据记录', data: [] };
-      }
-
-      return { valid: true, error: null, data: validated };
-    },
-
-    /**
-     * 验证号码范围（1-49）
-     * @param {number} num - 号码
-     * @returns {{ valid: boolean, error: string|null, value: number }}
-     */
-    validateNumber: (num) => {
-      const n = Number(num);
-      if (isNaN(n)) {
-        return { valid: false, error: '不是有效数字', value: 0 };
-      }
-      if (!Number.isInteger(n)) {
-        return { valid: false, error: '必须为整数', value: n };
-      }
-      if (n < 1 || n > 49) {
-        return { valid: false, error: '号码必须在1-49之间', value: n };
-      }
-      return { valid: true, error: null, value: n };
-    },
-
-    /**
-     * 验证生肖名称
-     * @param {string} zodiac - 生肖名
-     * @returns {{ valid: boolean, error: string|null, value: string }}
-     */
-    validateZodiac: (zodiac) => {
-      if (!zodiac || typeof zodiac !== 'string') {
-        return { valid: false, error: '生肖不能为空', value: '' };
-      }
-      const validZodiacs = CONFIG.ANALYSIS.ZODIAC_ALL;
-      if (!validZodiacs.includes(zodiac)) {
-        return { valid: false, error: `无效生肖: ${zodiac}`, value: zodiac };
-      }
-      return { valid: true, error: null, value: zodiac };
-    },
-
-    /**
-     * 验证期数参数
-     * @param {number} period - 期数
-     * @param {number} [min=1] - 最小值
-     * @param {number} [max=500] - 最大值
-     * @returns {{ valid: boolean, error: string|null, value: number }}
-     */
-    validatePeriod: (period, min = 1, max = 500) => {
-      const p = Number(period);
-      if (isNaN(p) || p < min || p > max) {
-        return { valid: false, error: `期数必须在${min}-${max}之间`, value: p || min };
-      }
-      return { valid: true, error: null, value: p };
-    },
-
-    /**
-     * 安全执行函数（带输入验证和错误处理）
-     * @param {Function} fn - 要执行的函数
-     * @param {*} args - 参数
-     * @param {string} context - 错误上下文描述
-     * @returns {{ success: boolean, result: *, error: Error|null }}
-     */
-    safeExecute: (fn, args, context = '未知操作') => {
-      try {
-        const result = fn(args);
-        return { success: true, result, error: null };
-      } catch(e) {
-        console.error(`[${context}] 执行失败:`, e);
-        return { success: false, result: null, error: e };
-      }
-    }
   },
 
   /**
@@ -537,16 +420,6 @@ const Utils = {
     const raw = (item && item.zodiac || ',,,,,,,,,,,,').split(',');
     const map = (typeof CONFIG !== 'undefined' && CONFIG.ANALYSIS && CONFIG.ANALYSIS.ZODIAC_TRAD_TO_SIMP) || {};
     return raw.map(z => map[z] || z);
-  },
-
-  /**
-   * 解析 openCode 字段为号码数组（兼容占位字符串）
-   * @param {Object} item - 历史数据单项 { openCode: '1,2,3,4,5,6,7' }
-   * @returns {number[]} 7 个号码数组（默认 0）
-   */
-  parseOpenCodeArr: (item) => {
-    const raw = (item && item.openCode || '0,0,0,0,0,0,0').split(',');
-    return raw.map(n => Number(n));
   },
 
   /**
@@ -677,16 +550,6 @@ const Utils = {
       });
     });
     return result;
-  },
-
-  /**
-   * 多分组字符串分割（兼容 "a,b,c" 格式与单值）
-   * @param {string} str - data-group 值（可能含逗号）
-   * @returns {string[]} 分组数组
-   */
-  splitGroups: (str) => {
-    if (!str) return [];
-    return String(str).split(',').map(s => s.trim()).filter(Boolean);
   },
 
   /**

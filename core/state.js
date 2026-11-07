@@ -108,20 +108,6 @@ const StateManager = {
   },
 
   /**
-   * 强制立即渲染（清空渲染队列）
-   */
-  flushRender: () => {
-    if(StateManager._renderTimer) {
-      clearTimeout(StateManager._renderTimer);
-      StateManager._renderTimer = null;
-    }
-    if(StateManager._renderQueue && StateManager._renderQueue.length > 0) {
-      Render.renderAll();
-      StateManager._renderQueue = null;
-    }
-  },
-
-  /**
    * 更新选中的筛选条件
    * @param {string} group - 分组名
    * @param {string|number} value - 选中的值

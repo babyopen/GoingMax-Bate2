@@ -89,12 +89,6 @@ const ViewZodiacPredict = {
     grid.innerHTML = '<div class="empty-tip">暂无开奖数据，请先刷新历史数据</div>';
   },
 
-  showLoading: function() {
-    var grid = document.getElementById('zodiacPredictionGrid');
-    if (!grid) return;
-    grid.innerHTML = '<div class="empty-tip">正在计算预测...</div>';
-  },
-
   renderBacktest: function(summary) {
     var container = document.getElementById('zodiacBacktestContainer');
     if (!container) return;

@@ -48,40 +48,9 @@
     }
 
     // ============================================================
-    // 1. DOM 缓存测试
+    // 1. memoize 测试
     // ============================================================
-    section('1. DOM 缓存（ViewCommon.$）');
-    if (typeof ViewCommon !== 'undefined' && typeof ViewCommon.$ === 'function') {
-      // 创建一个测试 DOM
-      const testEl = document.createElement('div');
-      testEl.id = 'test-dom-cache-el';
-      document.body.appendChild(testEl);
-
-      const start1 = performance.now();
-      for (let i = 0; i < 1000; i++) {
-        ViewCommon.$('test-dom-cache-el');
-      }
-      const cachedTime = performance.now() - start1;
-
-      const start2 = performance.now();
-      for (let i = 0; i < 1000; i++) {
-        document.getElementById('test-dom-cache-el');
-      }
-      const directTime = performance.now() - start2;
-
-      log('DOM 缓存查询 1000 次: ' + cachedTime.toFixed(2) + 'ms', cachedTime < 50);
-      log('直接查询 1000 次: ' + directTime.toFixed(2) + 'ms', true);
-
-      document.body.removeChild(testEl);
-      ViewCommon.clearDomCache('test-dom-cache-el');
-    } else {
-      log('ViewCommon 未加载', false);
-    }
-
-    // ============================================================
-    // 2. memoize 测试
-    // ============================================================
-    section('2. memoize 缓存（Utils.memoize）');
+    section('1. memoize 缓存（Utils.memoize）');
     if (typeof Utils !== 'undefined' && typeof Utils.memoize === 'function') {
       let callCount = 0;
       const expensive = Utils.memoize((x) => {
@@ -100,9 +69,9 @@
     }
 
     // ============================================================
-    // 3. LRU 缓存测试
+    // 2. LRU 缓存测试
     // ============================================================
-    section('3. LRU 缓存（Utils.createLRU）');
+    section('2. LRU 缓存（Utils.createLRU）');
     if (typeof Utils !== 'undefined' && typeof Utils.createLRU === 'function') {
       const lru = Utils.createLRU(3);
       lru.set('a', 1);
@@ -118,9 +87,9 @@
     }
 
     // ============================================================
-    // 4. SpecialCalculator 缓存测试
+    // 3. SpecialCalculator 缓存测试
     // ============================================================
-    section('4. SpecialCalculator 缓存优化');
+    section('3. SpecialCalculator 缓存优化');
     if (typeof Utils !== 'undefined' && Utils.SpecialCalculator) {
       // 第一次调用：实际计算
       const start1 = performance.now();
@@ -143,9 +112,9 @@
     }
 
     // ============================================================
-    // 5. 批量 setState 测试
+    // 4. 批量 setState 测试
     // ============================================================
-    section('5. StateManager.batchSetState');
+    section('4. StateManager.batchSetState');
     if (typeof StateManager !== 'undefined' && typeof StateManager.batchSetState === 'function') {
       let renderCount = 0;
       const origRender = window.Render;
@@ -160,20 +129,6 @@
       window.Render = origRender;
     } else {
       log('StateManager.batchSetState 未定义', false);
-    }
-
-    // ============================================================
-    // 6. DataQuery 增量检测测试
-    // ============================================================
-    section('6. DataQuery.hasHistoryChanged 增量检测');
-    if (typeof DataQuery !== 'undefined' && typeof DataQuery.hasHistoryChanged === 'function') {
-      DataQuery.updateHistorySnapshot(mockHistory);
-      log('首次快照后数据未变：hasHistoryChanged=' + DataQuery.hasHistoryChanged(mockHistory), DataQuery.hasHistoryChanged(mockHistory) === false);
-
-      const newHistory = mockHistory.concat([{ expect: 'new', openCode: '1,2,3,4,5,6,7' }]);
-      log('数据变化后：hasHistoryChanged=' + DataQuery.hasHistoryChanged(newHistory), DataQuery.hasHistoryChanged(newHistory) === true);
-    } else {
-      log('DataQuery.hasHistoryChanged 未定义', false);
     }
 
     // ============================================================

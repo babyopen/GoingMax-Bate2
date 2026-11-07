@@ -5,6 +5,7 @@
  *   - ZONE_MAP / ZONE_ORDER（共享数据）
  *   - calcFrequencyRating
  *   - analyzeZonePatterns
+ *   - analyzeZoneCombos          ← 2026-06-16 新增：三窗口区域组合规律
  *   - _getTeColor / _calcHotFactors / _calcHotMatchScore
  *   - getZoneRecommend / runZoneBacktest / getZoneBacktestSummary
  *   - calcZoneChangeTracking / _getZoneLevel
@@ -161,6 +162,75 @@ const ZodiacPredictionZones = {
     return result;
   },
 
+  /**
+   * 分析三窗口区域组合规律（2026-06-16 新增）
+   * 对每个生肖在 12/24/36 期窗口下的所属区域进行拼接（如 冷号区-冷号区-活跃区），
+   * 回溯历史统计每个组合的"下一次被开中"命中率，用于 getZoneRecommend 的组合加分维度。
+   * @param {Array} historyData - 历史数据（倒序，[0]为最新）
+   * @returns {Object|null} { comboHit, comboTotal, comboProb }
+   */
+  analyzeZoneCombos: function(historyData) {
+    if (!historyData || historyData.length < 37) return null;
+
+    var ZONE_MAP = ZodiacPrediction.ZONE_MAP;
+    var ZODIAC_ORDER = ZodiacPrediction.ZODIAC_ORDER;
+    var windows = [12, 24, 36];
+
+    var maxOffset = historyData.length - 37;
+    if (maxOffset <= 0) return null;
+    if (maxOffset > 60) maxOffset = 60;
+
+    // 性能优化：扁平化预处理（避免每期反复调用 _getSpecial）
+    var flatData = historyData.map(function(item) {
+      var s = Utils.SpecialCalculator.getSpecial(item);
+      return { expect: Number(item.expect || 0), zod: s.zod };
+    });
+
+    var comboHit = {};    // 组合字符串 → 命中次数
+    var comboTotal = {};  // 组合字符串 → 累计样本数
+
+    for (var offset = 0; offset < maxOffset; offset++) {
+      var nextItem = flatData[offset];
+      var nextZod = nextItem.zod;
+      if (ZODIAC_ORDER.indexOf(nextZod) === -1) continue;
+
+      // 对 12/24/36 三个窗口分别统计当期"开出前"的 freq
+      var windowFreqs = windows.map(function(w) {
+        var winData = flatData.slice(offset + 1, offset + 1 + w);
+        var freq = {};
+        ZODIAC_ORDER.forEach(function(z) { freq[z] = 0; });
+        winData.forEach(function(item) {
+          if (ZODIAC_ORDER.indexOf(item.zod) !== -1) freq[item.zod]++;
+        });
+        return freq;
+      });
+
+      ZODIAC_ORDER.forEach(function(z) {
+        var zones = windowFreqs.map(function(f, i) {
+          var level = ZodiacPrediction._getZoneLevel(windows[i], f[z]);
+          return ZONE_MAP[level];
+        });
+        var key = zones.join('-');
+        comboTotal[key] = (comboTotal[key] || 0) + 1;
+        if (z === nextZod) comboHit[key] = (comboHit[key] || 0) + 1;
+      });
+    }
+
+    // 计算每个组合的命中率（百分比，保留 1 位小数）
+    var comboProb = {};
+    Object.keys(comboTotal).forEach(function(key) {
+      var hit = comboHit[key] || 0;
+      var total = comboTotal[key];
+      comboProb[key] = total > 0 ? Math.round(hit / total * 1000) / 10 : 0;
+    });
+
+    return {
+      comboHit: comboHit,
+      comboTotal: comboTotal,
+      comboProb: comboProb
+    };
+  },
+
   _getTeColor: function(te) {
     var keys = Object.keys(CONFIG.COLOR_MAP);
     for (var i = 0; i < keys.length; i++) {
@@ -244,7 +314,25 @@ const ZodiacPredictionZones = {
     if (!freqResult || !freqResult.p12) return null;
 
     var p12 = freqResult.p12;
+    var p24 = freqResult.p24;
+    var p36 = freqResult.p36;
     var prob12 = patternResult && patternResult.p12 ? patternResult.p12.zoneProb : null;
+
+    // === 新增：三窗口区域组合规律（2026-06-16）===
+    // 用 12/24/36 期窗口的所属区域拼接（如 冷号区-冷号区-活跃区）查历史命中率
+    var comboResult = ZodiacPrediction.analyzeZoneCombos(historyData);
+    var comboProb = (comboResult && comboResult.comboProb) || null;
+
+    // 把 p24/p36 转成 map，便于按生肖快速查区域
+    var p24Map = null, p36Map = null;
+    if (p24) {
+      p24Map = {};
+      p24.forEach(function(x) { p24Map[x.zodiac] = x.zone; });
+    }
+    if (p36) {
+      p36Map = {};
+      p36.forEach(function(x) { p36Map[x.zodiac] = x.zone; });
+    }
 
     // === 第1步：预测最可能出现的区域（取概率最高的 2 个） ===
     var zoneRank = [];
@@ -267,14 +355,25 @@ const ZodiacPredictionZones = {
       var missRatio = item.miss / 12;
       var missRatioScore = Math.min(12, Math.round(missRatio * 12));
 
-      var total = Math.round(zoneBonus * 3) + hotScore + missRatioScore;
+      // === 新增：三窗口组合规律加成（2026-06-16）===
+      // 拼接该生肖在 12/24/36 期窗口下的所属区域，查历史命中率
+      var comboKey = item.zone;
+      var comboBonus = 0;
+      if (comboProb && p24Map && p36Map && p24Map[item.zodiac] && p36Map[item.zodiac]) {
+        comboKey = item.zone + '-' + p24Map[item.zodiac] + '-' + p36Map[item.zodiac];
+        comboBonus = comboProb[comboKey] || 0;
+      }
+
+      var total = Math.round(zoneBonus * 3) + hotScore + missRatioScore + Math.round(comboBonus * 1.5);
 
       return {
         zodiac: item.zodiac,
         zone: item.zone,
         count: item.count,
         miss: item.miss,
-        score: total
+        score: total,
+        comboKey: comboKey,
+        comboBonus: comboBonus
       };
     });
 

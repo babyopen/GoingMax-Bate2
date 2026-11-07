@@ -820,7 +820,7 @@ const BusinessSlidingWindowHistory = {
     var state = StateManager._state;
     var historyData = state.analysis.historyData;
     if (!historyData || !historyData.length) {
-      historyData = Storage.get('historyCache', []);
+      historyData = Storage.get(Storage.KEYS.HISTORY_DATA, []);
     }
     if (!historyData || historyData.length < 30) {
       console.log('数据不足，至少需要 30 期历史数据');

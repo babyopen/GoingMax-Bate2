@@ -10,10 +10,11 @@ const Storage = {
     HISTORY_DATA: 'historyData',
     HISTORY_TIMESTAMP: 'historyTimestamp',
     ZODIAC_BACKTEST: 'zodiacBacktest',
-    GIONG_BACKTEST_RECORDS: 'giongBacktestRecords',
     MARK_HINT_SHOWN: 'markHintShown',
     // 用户偏好（区域变动追踪卡片展开状态）
     ZONE_CHANGE_EXPANDED: 'zoneChangeExpanded',
+    // 用户偏好（多窗口组合统计 grid 折叠状态，2026-06-16 新增）
+    ZONE_CHANGE_COMBO_STATS_COLLAPSED: 'zoneChangeComboStatsCollapsed',
     // 用户偏好（主推面板"详细评分"表格展开状态）
     SCORE_TABLE_EXPANDED: 'scoreTableExpanded',
     // 当前主页临时筛选状态（新增：用于后台返回/页面刷新后恢复未保存的筛选）
@@ -165,14 +166,6 @@ const Storage = {
     Storage.set(Storage.KEYS.HISTORY_TIMESTAMP, Date.now());
   },
 
-  getGiongBacktestRecords: () => {
-    return Storage.get(Storage.KEYS.GIONG_BACKTEST_RECORDS, []);
-  },
-
-  saveGiongBacktestRecords: (records) => {
-    return Storage.set(Storage.KEYS.GIONG_BACKTEST_RECORDS, records);
-  },
-
   /**
    * 获取区域变动追踪卡片的展开状态
    * @returns {boolean} 是否展开
@@ -187,6 +180,22 @@ const Storage = {
    */
   saveZoneChangeExpanded: (expanded) => {
     return Storage.set(Storage.KEYS.ZONE_CHANGE_EXPANDED, !!expanded);
+  },
+
+  /**
+   * 获取多窗口组合统计 grid 的折叠状态（2026-06-16 新增）
+   * @returns {boolean} 是否折叠（默认 true：折叠，2026-06-16 调整）
+   */
+  getComboStatsCollapsed: () => {
+    return Storage.get(Storage.KEYS.ZONE_CHANGE_COMBO_STATS_COLLAPSED, true);
+  },
+
+  /**
+   * 保存多窗口组合统计 grid 的折叠状态（2026-06-16 新增）
+   * @param {boolean} collapsed - 是否折叠
+   */
+  saveComboStatsCollapsed: (collapsed) => {
+    return Storage.set(Storage.KEYS.ZONE_CHANGE_COMBO_STATS_COLLAPSED, !!collapsed);
   },
 
   /**
@@ -270,14 +279,6 @@ const Storage = {
     return safe;
   },
 
-  /**
-   * 清除当前主页临时筛选状态缓存
-   * @returns {boolean} 是否成功
-   */
-  clearCurrentFilter: () => {
-    return Storage.remove(Storage.KEYS.CURRENT_FILTER);
-  },
-
   // ============================================================
   // 新增：页面离开时子标签记忆（2026-06-08）
   // 用途：在『我的/广播/资料』页面切换到任意子标签后离开到其他页面，
@@ -304,6 +305,53 @@ const Storage = {
   }),
 
   /**
+   * 已废弃的历史键（代码中已无任何读写路径）
+   * 说明：移除功能时同步追加到此列表，cleanupOrphanKeys 会自动清理用户浏览器中的残留数据
+   */
+  REMOVED_KEYS: Object.freeze([
+    'giongBacktestRecords', // 2026-11-07 移除 Giong 双链推荐引擎后废弃
+    'historyCache'          // 早期版本的历史缓存键，现统一使用 historyData
+  ]),
+
+  /**
+   * 清理 localStorage 中的废弃键
+   *
+   * 策略：
+   *   1. 移除 REMOVED_KEYS 中登记的废弃键（安全，已确认无读写路径）
+   *   2. 报告其它未登记的未知键，默认不删除（避免误删未登记的新键）
+   *
+   * @param {boolean} [aggressive=false] - true 时连同未知键一并删除
+   * @returns {{removed: string[], unknown: string[]}} removed=已删除的键；unknown=未登记的未知键
+   */
+  cleanupOrphanKeys: (aggressive = false) => {
+    const result = { removed: [], unknown: [] };
+    if (!Storage.isLocalStorageAvailable()) return result;
+
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k) keys.push(k);
+      }
+
+      keys.forEach(key => {
+        if (Storage.REMOVED_KEYS.indexOf(key) >= 0) {
+          localStorage.removeItem(key);
+          result.removed.push(key);
+        } else if (aggressive) {
+          localStorage.removeItem(key);
+          result.removed.push(key);
+        } else if (Storage.ACTIVE_KEYS.indexOf(key) < 0) {
+          result.unknown.push(key);
+        }
+      });
+    } catch(e) {
+      console.error('存储清理失败', e);
+    }
+    return result;
+  },
+
+  /**
    * 获取指定页面上次的子标签
    * @param {string} pageName - profile / analysis / random
    * @returns {string|null} 合法子标签；未配置返回 null
@@ -328,3 +376,21 @@ const Storage = {
     return Storage.set(conf.key, tab);
   }
 };
+
+/**
+ * 活跃键集合（应用当前真实使用的全部 localStorage 键）
+ * 由 KEYS / TAB_MEMORY 自动汇总 + 业务层裸字符串键，避免手工维护漂移
+ */
+Storage.ACTIVE_KEYS = Object.freeze(
+  Object.keys(Storage.KEYS).map(k => Storage.KEYS[k])
+    .concat(Object.keys(Storage.TAB_MEMORY).map(k => Storage.TAB_MEMORY[k].key))
+    .concat([
+      // 业务层直接使用的裸字符串键
+      'zoneBacktest',
+      'zodiacStrategyTuned',
+      'ultimateAdaptive',
+      'ultimateCooling',
+      'ultimateBacktest',
+      'ultimateRecommendHistory'
+    ])
+);

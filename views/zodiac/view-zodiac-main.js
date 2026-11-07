@@ -7,6 +7,28 @@
 const ViewZodiacMain = {
 
   /**
+   * 渲染"最热/次热"窗口组合行（grid 三列：标题 / 组合 / 次数）
+   * @param {string} title - 行标题（含图标，如 '🎯 近12期最热：'）
+   * @param {Array<string>} combos - 组合列表
+   * @param {number} count - 出现次数
+   * @param {string} color - 主题色
+   * @returns {string} HTML
+   */
+  _renderComboRows: function(title, combos, count, color) {
+    var html = '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:baseline;">';
+    html += '<div style="color:' + color + ';font-weight:600;">' + title + '</div>';
+    html += '<div style="color:var(--text);">' + combos[0] + '</div>';
+    html += '<div style="color:' + color + ';font-weight:600;">×' + count + '</div>';
+    for (var i = 1; i < combos.length; i++) {
+      html += '<div></div>';
+      html += '<div style="color:var(--text);">' + combos[i] + '</div>';
+      html += '<div style="color:' + color + ';font-weight:600;">×' + count + '</div>';
+    }
+    html += '</div>';
+    return html;
+  },
+
+  /**
    * 渲染主推标签页：滑动窗口预测结果
    * @param {Object} data - BusinessSlidingWindow.predict() 的返回结果
    */
@@ -51,47 +73,26 @@ const ViewZodiacMain = {
       //          后续组合在下方行（第一列留空，自动缩进到组合文字起始位置）
       var zca = data.zoneComboAnalysis;
       if (zca) {
-        var hasHot = zca.hotCombos && zca.hotCombos.length > 0 && zca.maxCount >= 2;
-        var hasSecond = zca.secondHotCombos && zca.secondHotCombos.length > 0 && zca.secondMaxCount >= 2;
-        if (hasHot || hasSecond) {
+        var hotRows = (zca.hotCombos && zca.hotCombos.length && zca.maxCount >= 2) ? zca.hotCombos : null;
+        var secondRows = (zca.secondHotCombos && zca.secondHotCombos.length && zca.secondMaxCount >= 2) ? zca.secondHotCombos : null;
+        if (hotRows || secondRows) {
           cardHtml += '<div class="zone-combo-hot-bar" style="font-size:11px;color:var(--sub-text);padding:6px 8px;background:rgba(90,200,250,0.08);border-left:3px solid #5AC8FA;border-radius:4px;margin-bottom:8px;">';
-          if (hasHot) {
-            cardHtml += '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:baseline;">';
-            cardHtml += '<div style="color:#5AC8FA;font-weight:600;">🎯 近' + zca.recentN + '期最热：</div>';
-            cardHtml += '<div style="color:var(--text);">' + zca.hotCombos[0] + '</div>';
-            cardHtml += '<div style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</div>';
-            for (var hi = 1; hi < zca.hotCombos.length; hi++) {
-              cardHtml += '<div></div>';
-              cardHtml += '<div style="color:var(--text);">' + zca.hotCombos[hi] + '</div>';
-              cardHtml += '<div style="color:#5AC8FA;font-weight:600;">×' + zca.maxCount + '</div>';
-            }
-            cardHtml += '</div>';
+          if (hotRows) {
+            cardHtml += ViewZodiacMain._renderComboRows('🎯 近' + zca.recentN + '期最热：', hotRows, zca.maxCount, '#5AC8FA');
           }
-          if (hasSecond) {
-            if (hasHot) cardHtml += '<div style="height:6px;"></div>';
-            cardHtml += '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;align-items:baseline;">';
-            cardHtml += '<div style="color:#FF9F0A;font-weight:600;">🥈 次热：</div>';
-            cardHtml += '<div style="color:var(--text);">' + zca.secondHotCombos[0] + '</div>';
-            cardHtml += '<div style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</div>';
-            for (var si = 1; si < zca.secondHotCombos.length; si++) {
-              cardHtml += '<div></div>';
-              cardHtml += '<div style="color:var(--text);">' + zca.secondHotCombos[si] + '</div>';
-              cardHtml += '<div style="color:#FF9F0A;font-weight:600;">×' + zca.secondMaxCount + '</div>';
-            }
-            cardHtml += '</div>';
+          if (secondRows) {
+            if (hotRows) cardHtml += '<div style="height:6px;"></div>';
+            cardHtml += ViewZodiacMain._renderComboRows('🥈 次热：', secondRows, zca.secondMaxCount, '#FF9F0A');
           }
           cardHtml += '</div>';
         }
       }
 
       cardHtml += '<div class="zodiac-pred-grid">';
+      var RANK_CLASS_MAP = { 1: 'card-rank-1', 2: 'card-rank-2', 3: 'card-rank-3' };
       data.candidates.forEach(function(item, idx) {
         var rankNum = idx + 1;
-        var cardClass = '';
-        if (rankNum === 1) cardClass = 'card-rank-1';
-        else if (rankNum === 2) cardClass = 'card-rank-2';
-        else if (rankNum === 3) cardClass = 'card-rank-3';
-        else cardClass = 'card-rank-other';
+        var cardClass = RANK_CLASS_MAP[rankNum] || 'card-rank-other';
 
         var scoreColor = item.score >= 60 ? 'color:#30D158;' : (item.score >= 30 ? 'color:#FF9F0A;' : 'color:var(--sub-text);');
 
@@ -145,9 +146,9 @@ const ViewZodiacMain = {
         var zoneClass36 = ViewCommon.getZoneClass(item.zone36);
 
         // V1.5.2 新增：第 3 名起的"主行"和"信号行"加 sw-row-hidden（仅用于折叠，CSS 控制显示）
-        var hiddenClass = (idx >= visibleCount) ? ' sw-row-hidden' : '';
+        var hiddenClass = idx >= visibleCount ? 'sw-row-hidden' : '';
 
-        tableHtml += '<tr style="' + rowBg + '" class="' + (hiddenClass ? 'sw-row-hidden' : '').trim() + '">';
+        tableHtml += '<tr style="' + rowBg + '" class="' + hiddenClass + '">';
         tableHtml += '<td style="padding:6px 8px;font-weight:600;">' + item.shengxiao + '</td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window6 + ' <span class="freq-zone-tag ' + zoneClass6 + '" style="font-size:10px;padding:0 4px;">' + item.zone6 + '</span></td>';
         tableHtml += '<td style="padding:6px 8px;text-align:center;">' + item.window12 + ' <span class="freq-zone-tag ' + zoneClass12 + '" style="font-size:10px;padding:0 4px;">' + item.zone12 + '</span></td>';
@@ -158,7 +159,7 @@ const ViewZodiacMain = {
         tableHtml += '</tr>';
         // 信号单独占一行，跨 7 列（生肖+6/12/24/36期+评分+遗漏）
         // 仅信号行保留 border-bottom，作为下一生肖组的视觉分隔
-        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);" class="' + (hiddenClass ? 'sw-row-hidden' : '').trim() + '">';
+        tableHtml += '<tr style="' + rowBg + 'border-bottom:1px solid var(--border);" class="' + hiddenClass + '">';
         tableHtml += '<td colspan="7" style="padding:6px 8px;font-size:11px;">' + (item.signals ? item.signals.join('；') : '—') + '</td>';
         tableHtml += '</tr>';
       });
